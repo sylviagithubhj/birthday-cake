@@ -166,7 +166,6 @@
   </div>
   <div class="status" id="status">스페이스바를 누르고 있어도 불 수 있어요</div>
   <div class="bar" id="bar">
-    <button class="pill" id="btnPaste">채팅 붙여넣기</button>
     <button class="pill" id="btnCam">카메라로 후~</button>
     <button class="pill" id="btnMic">마이크도 듣기</button>
     <button class="pill primary" id="btnBlow">하나 둘 셋, 후~</button>
@@ -177,15 +176,7 @@
   <div class="count" id="count"></div>
   <div class="finale" id="finale">모두의 소원이 이뤄지길</div>
   <canvas id="fx"></canvas>
-  <div class="modal hidden" id="pasteModal">
-    <div class="box">
-      <h3>채팅에서 소원 가져오기</h3>
-      <p>줌 채팅을 통째로 복사해서 붙여 넣으면 이름이랑 시간은 빼고 소원만 남겨요. 한 줄에 소원 하나예요.</p>
-      <textarea id="pasteText" rows="7" placeholder="여기에 붙여 넣기"></textarea>
-      <ul class="preview" id="pastePreview"></ul>
-      <div class="row"><button class="pill" id="pasteCancel">닫기</button><button class="pill primary" id="pasteOk">초 켜기</button></div>
-    </div>
-  </div>
+</div>
 </div>
 
 <!-- student -->
@@ -472,7 +463,7 @@ async function startHost(){
   }
 
   /* ---------- state & networking ---------- */
-  const state = { phase: 'lobby', q: -1, ai: 0, qStart: 0 };
+  const state = { phase: 'wish', q: -1, ai: 0, qStart: 0 };
   const KEY = JSON.parse(atob('WzAsMywwLDMsMF0=')); // answers, revealed one by one
   const players = new Map(); // uid -> {name, score, time}
   const answers = QUIZ.map(() => new Map()); // uid -> {c, ms}
@@ -504,7 +495,7 @@ async function startHost(){
     (d.players || []).forEach(([u, p]) => players.set(u, p));
     (d.answers || []).forEach((list, i) => { if (answers[i]) list.forEach(([u, v]) => answers[i].set(u, v)); });
     (d.candles || []).forEach(([id, text, out]) => { const c = addCandle(id, text); if (out){ c.out = true; c.health = 0; } });
-    state.phase = ['blow', 'done'].includes(d.phase) ? 'wish' : (d.phase || 'lobby');
+    state.phase = 'wish';
     state.q = d.q ?? -1; state.ai = d.ai || 0; state.qStart = Date.now();
     if (state.phase === 'rank') rankList = [...players.entries()].map(([u, p]) => ({ u, ...p })).sort((a, b) => b.score - a.score || a.time - b.time);
     if (state.phase === 'wish') $('subtitle').textContent = '이제 링크에서 소원을 하나씩 적어 주세요';
@@ -601,15 +592,6 @@ async function startHost(){
     }
     return out;
   }
-  $('btnPaste').onclick = () => { $('pasteModal').classList.remove('hidden'); $('pasteText').focus(); };
-  $('pasteCancel').onclick = () => $('pasteModal').classList.add('hidden');
-  $('pasteText').oninput = () => { $('pastePreview').innerHTML = parseChat($('pasteText').value).map(s => `<li>${esc(s)}</li>`).join(''); };
-  $('pasteOk').onclick = () => {
-    const list = parseChat($('pasteText').value); let k = candles.filter(c => c.id.startsWith('p:')).length;
-    list.forEach(t => addCandle('p:' + (k++) + ':' + rid(3), t));
-    $('pasteText').value = ''; $('pastePreview').innerHTML = ''; $('pasteModal').classList.add('hidden');
-    setStatus(`초 ${list.length}개 켰어요`);
-  };
   const esc = s => s.replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
 
   /* ---------- host blowing: camera lips, mic, space ---------- */
@@ -924,7 +906,7 @@ async function startHost(){
   function puff(){ for (let i = 0; i < 4; i++){ const s = document.createElement('div'); s.className = 'smoke'; s.style.setProperty('--dx', ((Math.random() - .5) * 60) + 'px'); s.style.animationDelay = (i * 0.15) + 's'; $('candleBox').appendChild(s); setTimeout(() => s.remove(), 3000); } }
 
   function render(){
-    const quizPhase = !S.phase || ['lobby', 'quiz', 'answers', 'rank'].includes(S.phase);
+    const quizPhase = false;
     $('sName').classList.toggle('hidden', !(quizPhase && !nick));
     $('sQuiz').classList.toggle('hidden', !(quizPhase && nick));
     if (quizPhase){ $('sWrite').classList.add('hidden'); $('sCandle').classList.add('hidden'); if (nick) renderQuizS(); return; }
