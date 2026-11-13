@@ -69,6 +69,40 @@
   body.clean .hint{opacity:.35}
   .toast{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);padding:14px 20px;border-radius:14px;background:rgba(20,10,12,.85);border:1px solid var(--line);z-index:30;font-size:15px}
 
+  /* ===== quiz (host) ===== */
+  .quiz{position:fixed;left:24px;right:276px;top:150px;bottom:24px;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:6}
+  .qcard{width:min(980px,100%);padding:30px 34px;border-radius:26px;background:rgba(30,14,18,.72);border:1px solid var(--line);backdrop-filter:blur(14px);box-shadow:0 20px 80px rgba(0,0,0,.35)}
+  .qnum{font-size:15px;color:var(--gold);letter-spacing:.08em;margin-bottom:8px}
+  .qtext{font-family:"Gowun Batang",serif;font-size:clamp(24px,2.6vw,38px);line-height:1.35;margin-bottom:22px;word-break:keep-all}
+  .opts{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .opt{position:relative;overflow:hidden;padding:16px 18px;border-radius:16px;background:rgba(255,244,232,.07);border:1px solid var(--line);font-size:clamp(16px,1.4vw,21px);line-height:1.4;text-align:left;word-break:keep-all;transition:opacity .4s,border-color .4s,background .4s}
+  .opt .n{display:inline-flex;width:28px;height:28px;margin-right:10px;border-radius:50%;align-items:center;justify-content:center;background:rgba(255,244,232,.14);font-size:15px;vertical-align:1px}
+  .opt .barq{position:absolute;left:0;top:0;bottom:0;width:0;background:rgba(255,210,140,.14);transition:width .8s ease;z-index:-1}
+  .opt .cnt{float:right;color:var(--muted);font-size:15px;margin-left:10px}
+  .opt.right{border-color:#ffd27a;background:rgba(255,210,122,.16);box-shadow:0 0 30px rgba(255,210,122,.25)}
+  .opt.wrong{opacity:.45}
+  .qfoot{display:flex;align-items:center;justify-content:space-between;margin-top:20px;gap:10px;flex-wrap:wrap}
+  .qfoot .who{color:var(--muted);font-size:15px}
+  .lobbyNames{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin:14px 0 4px;max-height:200px;overflow:auto}
+  .lobbyNames span{padding:6px 12px;border-radius:99px;background:rgba(255,244,232,.1);font-size:15px;animation:floatUp .6s ease-out}
+  .podium{display:flex;align-items:flex-end;justify-content:center;gap:18px;margin:10px 0 6px;min-height:300px}
+  .pod{width:200px;text-align:center;opacity:0;transform:translateY(30px);transition:all .8s cubic-bezier(.2,1.4,.4,1)}
+  .pod.show{opacity:1;transform:none}
+  .pod .nm{font-family:"Gowun Batang",serif;font-size:26px;margin-bottom:6px;word-break:keep-all}
+  .pod .sc{color:var(--muted);font-size:14px;margin-bottom:10px}
+  .pod .blk{border-radius:16px 16px 4px 4px;display:flex;align-items:flex-start;justify-content:center;padding-top:14px;font-family:"Gowun Batang",serif;font-size:40px}
+  .pod.p1 .blk{height:170px;background:linear-gradient(180deg,#ffd27a,#e9a24f);color:#3a1a10}
+  .pod.p2 .blk{height:120px;background:linear-gradient(180deg,#f2eee9,#bdb6ae);color:#2a2220}
+  .pod.p3 .blk{height:90px;background:linear-gradient(180deg,#f0b48a,#c27a50);color:#2a1610}
+  body.quizmode .bar,body.quizmode .status,body.quizmode .hint,body.quizmode #subtitle{display:none}
+  body.quizmode #stage{filter:blur(3px) brightness(.55)}
+  #stage{transition:filter .8s}
+  .sopts{display:grid;gap:10px;margin-top:14px}
+  .sopt{padding:14px 16px;border-radius:14px;background:rgba(255,244,232,.08);border:1px solid var(--line);text-align:left;font-size:16px;line-height:1.4;word-break:keep-all}
+  .sopt.sel{border-color:#ffd27a;background:rgba(255,210,122,.18)}
+  .sopt.right{border-color:#9fe6a8;background:rgba(160,255,190,.16)}
+  .sQ{font-family:"Gowun Batang",serif;font-size:22px;line-height:1.4;word-break:keep-all}
+  .big{font-family:"Gowun Batang",serif;font-size:44px;margin:8px 0}
   /* ===== student ===== */
   .st{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;text-align:center;z-index:3}
   .st h1{font-family:"Gowun Batang",serif;font-size:clamp(26px,7vw,40px);margin-bottom:8px}
@@ -122,6 +156,7 @@
     <button class="pill" id="copyLink">링크 복사</button>
     <div class="stat" id="stat">들어온 사람 0 · 켜진 초 0</div>
     <div class="small" id="net">연결 중…</div>
+    <button class="small" id="newRoom" style="text-decoration:underline;margin-top:6px">새 방으로 처음부터</button>
   </div>
   <div class="cam hidden" id="cam">
     <video id="video" playsinline muted></video>
@@ -138,6 +173,7 @@
     <button class="pill" id="btnReset">다시 켜기</button>
   </div>
   <div class="hint">H: 버튼 숨기기 · Space: 불기 · 케이크 .glb 파일을 끌어다 놓으면 바뀌어요</div>
+  <div class="quiz hidden" id="quiz"><div class="qcard" id="qcard"></div></div>
   <div class="count" id="count"></div>
   <div class="finale" id="finale">모두의 소원이 이뤄지길</div>
   <canvas id="fx"></canvas>
@@ -155,7 +191,14 @@
 <!-- student -->
 <div id="student" class="hidden">
   <div class="st">
-    <div class="card" id="sWrite">
+    <div class="card hidden" id="sName">
+      <h1>반가워요!</h1>
+      <p class="lead">먼저 퀴즈를 할 거예요.<br>순위에 보일 닉네임을 적어 주세요.</p>
+      <input type="text" id="sNick" maxlength="12" placeholder="닉네임">
+      <button class="pill primary btn" id="sNickGo">들어가기</button>
+    </div>
+    <div class="card hidden" id="sQuiz"></div>
+    <div class="card hidden" id="sWrite">
       <h1 id="sTitle">오늘, 같이 소원 빌어요</h1>
       <p class="lead">요즘 바라는 거 하나만 적어 주세요.<br>이름 없이 케이크에 초로 켜져요.</p>
       <textarea id="sWish" rows="3" maxlength="80" placeholder="예) 이번 겨울엔 푹 쉬고 싶어요"></textarea>
@@ -216,6 +259,14 @@ function makeNet(room, onMsg, onStatus){
     count(){ return clients.filter(c => c.connected).length; },
   };
 }
+const QUIZ = [
+  { q: '강사님이 “이건 정말 잘 만든 프로덕트다!”라고 생각하는 서비스는?', o: ['복잡한 금융을 쉽게 풀어주는 토스', '내 방식대로 작업 공간을 만드는 노션', '함께 만들고 바로 의견을 나누는 피그마', '동네 사람과 필요한 것을 연결하는 당근'] },
+  { q: '강사님이 앱을 쓰다가 가장 감탄하는 순간은?', o: ['화면을 켜자마자 시각적으로 아름다울 때', '설명을 읽지 않아도 사용법을 알겠을 때', '여러 단계의 일을 한 번에 끝낼 수 있을 때', '예상하지 못한 세심한 배려를 발견했을 때'] },
+  { q: '강사님이 요즘 가장 관심 있게 지켜보는 기업인은?', o: ['일론 머스크 (테슬라, 스페이스X)', '젠슨 황 (엔비디아)', '돈 노먼 (『디자인과 인간 심리』 저자)', '이승건 (토스)'] },
+  { q: '강사님이 프로덕트 디자이너에게 추천하고 싶은 책은?', o: ['도널드 노먼의 『디자인과 인간 심리』', '스티브 크룩의 『사용자를 생각하게 하지 마!』', '제이크 냅 외 『스프린트』', '우디의 『사용자를 사로잡는 UX/UI 실전 가이드』'] },
+  { q: '강사님이 언젠가 직접 만들어보고 싶은 프로덕트는?', o: ['사람의 마음과 상황을 이해하고 행동하는 감성적인 로봇 서비스', '누구나 쉽게 배우고 성장하는 디자인 교육 서비스', '일상의 반복 업무를 줄여주는 AI 도구', '1% 사람들의 취향과 관계를 연결하는 커뮤니티 서비스'] },
+];
+const NUMS = ['①', '②', '③', '④'];
 /* bokeh dots */
 (() => {
   const el = document.getElementById('bokeh');
@@ -402,6 +453,7 @@ async function startHost(){
     candleHolder.add(c.g); candles.push(c); layout();
     const tgt = c.target; c.g.position.copy(tgt);
     if (state.phase === 'done'){ state.phase = 'wish'; clearFloat(); }
+    if (['lobby', 'quiz', 'rank'].includes(state.phase)){ /* wishes can arrive early; candle waits on the cake */ }
     updateStat(); pushState();
     return c;
   }
@@ -420,17 +472,49 @@ async function startHost(){
   }
 
   /* ---------- state & networking ---------- */
-  const state = { phase: 'wish' };
+  const state = { phase: 'lobby', q: -1, reveal: false, qStart: 0 };
+  const KEY = JSON.parse(atob('WzAsMywwLDMsMF0=')); // answers, revealed one by one
+  const players = new Map(); // uid -> {name, score, time}
+  const answers = QUIZ.map(() => new Map()); // uid -> {c, ms}
+  let rankList = [];
   const people = new Map(); // uid -> last seen
   function snapshot(){
-    return { k: 'state', phase: state.phase, title: $('title').textContent.trim(), ids: candles.filter(c => !c.id.startsWith('p:')).map(c => c.id), out: candles.filter(c => c.out).map(c => c.id), cd: state.cd || 0, t: Date.now() };
+    const snap = { k: 'state', phase: state.phase, title: $('title').textContent.trim(), ids: candles.filter(c => !c.id.startsWith('p:')).map(c => c.id), out: candles.filter(c => c.out).map(c => c.id), cd: state.cd || 0, t: Date.now() };
+    snap.pl = [...players.keys()];
+    if (state.phase === 'quiz'){ snap.q = state.q; snap.rv = state.reveal; snap.got = state.q >= 0 ? [...answers[state.q].keys()] : []; if (state.reveal) snap.a = KEY[state.q]; }
+    if (state.reveal || state.phase === 'rank'){ snap.sc = {}; for (const [u, p] of players) snap.sc[u] = p.score; }
+    if (state.phase === 'rank'){ snap.rk = {}; rankList.forEach((r, i) => snap.rk[r.u] = i + 1); snap.top = rankList.slice(0, 3).map(r => [r.name, r.score]); }
+    return snap;
   }
   let pushTimer = 0;
-  function pushState(){ clearTimeout(pushTimer); pushTimer = setTimeout(() => net.send('state', snapshot(), true), 60); }
+  function pushState(){ clearTimeout(pushTimer); pushTimer = setTimeout(() => { net.send('state', snapshot(), true); save(); }, 60); }
+  const SAVE_KEY = 'hjSave:' + myRoom;
+  let restoring = false;
+  function save(){
+    if (restoring) return;
+    try { localStorage.setItem(SAVE_KEY, JSON.stringify({ phase: state.phase, q: state.q, reveal: state.reveal, title: $('title').textContent.trim(),
+      players: [...players], answers: answers.map(m => [...m]), candles: candles.map(c => [c.id, c.text, c.out]) })); } catch(e){}
+  }
+  function restore(){
+    let d; try { d = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null'); } catch(e){}
+    if (!d) return;
+    restoring = true;
+    if (d.title) $('title').textContent = d.title;
+    (d.players || []).forEach(([u, p]) => players.set(u, p));
+    (d.answers || []).forEach((list, i) => { if (answers[i]) list.forEach(([u, v]) => answers[i].set(u, v)); });
+    (d.candles || []).forEach(([id, text, out]) => { const c = addCandle(id, text); if (out){ c.out = true; c.health = 0; } });
+    state.phase = ['blow', 'done'].includes(d.phase) ? 'wish' : (d.phase || 'lobby');
+    state.q = d.q ?? -1; state.reveal = !!d.reveal; state.qStart = Date.now();
+    if (state.phase === 'rank') rankList = [...players.entries()].map(([u, p]) => ({ u, ...p })).sort((a, b) => b.score - a.score || a.time - b.time);
+    if (state.phase === 'wish') $('subtitle').textContent = '이제 링크에서 소원을 하나씩 적어 주세요';
+    restoring = false; updateStat(); pushState();
+  }
   const net = makeNet(myRoom, (sub, m) => {
     if (sub !== 'up' || !m.u) return;
     people.set(m.u, performance.now());
-    if (m.k === 'wish' && typeof m.text === 'string'){ addCandle(m.u, m.text.slice(0, 80)); }
+    if (m.k === 'name' && typeof m.name === 'string'){ const p = players.get(m.u); if (p) p.name = m.name.slice(0, 12); else players.set(m.u, { name: m.name.slice(0, 12), score: 0, time: 0 }); renderQuiz(); pushState(); }
+    else if (m.k === 'ans' && state.phase === 'quiz' && m.q === state.q && !state.reveal && players.has(m.u) && !answers[m.q].has(m.u) && m.c >= 0 && m.c < 4){ answers[m.q].set(m.u, { c: m.c, ms: Date.now() - state.qStart }); renderQuiz(); pushState(); }
+    else if (m.k === 'wish' && typeof m.text === 'string'){ addCandle(m.u, m.text.slice(0, 80)); }
     else if (m.k === 'blow'){ const c = candles.find(c => c.id === m.u); if (c){ c.studentV = +m.v || 0; c.studentT = performance.now(); } }
     else if (m.k === 'out'){ const c = candles.find(c => c.id === m.u); if (c) extinguish(c); }
     else if (m.k === 'hello'){ pushState(); }
@@ -445,6 +529,57 @@ async function startHost(){
     $('stat').textContent = `들어온 사람 ${active} · 켜진 초 ${lit}/${candles.length}`;
   }
   setInterval(updateStat, 3000);
+
+  /* ---------- quiz (host) ---------- */
+  function setQuizMode(on){ document.body.classList.toggle('quizmode', on); $('quiz').classList.toggle('hidden', !on); }
+  function renderQuiz(){
+    if (!['lobby', 'quiz', 'rank'].includes(state.phase)){ setQuizMode(false); return; }
+    setQuizMode(true);
+    const card = $('qcard');
+    if (state.phase === 'lobby'){
+      const names = [...players.values()].map(p => `<span>${esc(p.name)}</span>`).join('');
+      card.innerHTML = `<div class="qnum">시작하기 전에</div><div class="qtext">강사님에 대해 얼마나 알고 있을까요?<br>퀴즈 5문제로 먼저 몸 풀어요</div>
+        <div class="qfoot"><span class="who">오른쪽 QR이나 링크로 들어와서 닉네임을 적어 주세요 · ${players.size}명 입장</span></div>
+        <div class="lobbyNames">${names}</div>
+        <div class="qfoot"><button class="pill" id="qSkip">퀴즈 건너뛰고 소원 빌기</button><button class="pill primary" id="qStart">퀴즈 시작</button></div>`;
+      $('qStart').onclick = () => goQ(0);
+      $('qSkip').onclick = toWish;
+      return;
+    }
+    if (state.phase === 'quiz'){
+      const Q = QUIZ[state.q], A = answers[state.q], rv = state.reveal;
+      const counts = [0, 0, 0, 0]; for (const v of A.values()) counts[v.c]++;
+      const tot = Math.max(1, A.size);
+      card.innerHTML = `<div class="qnum">Q${state.q + 1} / ${QUIZ.length}</div><div class="qtext">${esc(Q.q)}</div>
+        <div class="opts">${Q.o.map((o, i) => `<div class="opt ${rv ? (i === KEY[state.q] ? 'right' : 'wrong') : ''}"><div class="barq" style="width:${rv ? counts[i] / tot * 100 : 0}%"></div>${rv ? `<span class="cnt">${counts[i]}명</span>` : ''}<span class="n">${i + 1}</span>${esc(o)}</div>`).join('')}</div>
+        <div class="qfoot"><span class="who">응답 ${A.size} / ${players.size}명</span>
+        ${rv ? (state.q < QUIZ.length - 1 ? '<button class="pill primary" id="qNext">다음 문제</button>' : '<button class="pill primary" id="qRank">순위 공개</button>') : '<button class="pill primary" id="qReveal">정답 공개</button>'}</div>`;
+      if ($('qReveal')) $('qReveal').onclick = reveal;
+      if ($('qNext')) $('qNext').onclick = () => goQ(state.q + 1);
+      if ($('qRank')) $('qRank').onclick = showRank;
+      return;
+    }
+    if (state.phase === 'rank'){
+      const t = rankList;
+      const pod = (r, cls, place) => r ? `<div class="pod ${cls}" id="${cls}"><div class="nm">${esc(r.name)}</div><div class="sc">${r.score}문제 맞힘</div><div class="blk">${place}</div></div>` : '';
+      card.innerHTML = `<div class="qnum">결과 발표</div><div class="qtext" style="text-align:center">강사님을 제일 잘 아는 사람은?</div>
+        <div class="podium">${pod(t[1], 'p2', 2)}${pod(t[0], 'p1', 1)}${pod(t[2], 'p3', 3)}</div>
+        <div class="qfoot"><span class="who">${players.size}명 참여</span><button class="pill primary" id="qWish">이제 소원 빌러 가요</button></div>`;
+      $('qWish').onclick = toWish;
+      ['p3', 'p2', 'p1'].forEach((id, i) => setTimeout(() => { const el = $(id); if (el) el.classList.add('show'); if (id === 'p1') confetti(); }, 700 + i * 1500));
+    }
+  }
+  function goQ(i){ state.phase = 'quiz'; state.q = i; state.reveal = false; state.qStart = Date.now(); renderQuiz(); pushState(); }
+  function reveal(){
+    state.reveal = true;
+    for (const [u, v] of answers[state.q]){ const p = players.get(u); if (p && v.c === KEY[state.q]){ p.score++; p.time += v.ms; } }
+    renderQuiz(); pushState();
+  }
+  function showRank(){
+    rankList = [...players.entries()].map(([u, p]) => ({ u, ...p })).sort((a, b) => b.score - a.score || a.time - b.time);
+    state.phase = 'rank'; renderQuiz(); pushState();
+  }
+  function toWish(){ state.phase = 'wish'; renderQuiz(); pushState(); setStatus('소원이 들어오면 초가 하나씩 켜져요'); $('subtitle').textContent = '이제 링크에서 소원을 하나씩 적어 주세요'; }
 
   /* ---------- paste from chat ---------- */
   function parseChat(txt){
@@ -679,6 +814,14 @@ async function startHost(){
   }
   requestAnimationFrame(loop);
   // test hook
+  restore();
+  addEventListener('beforeunload', save);
+  $('newRoom').onclick = () => {
+    if ($('newRoom').dataset.armed){ try { localStorage.removeItem(SAVE_KEY); localStorage.removeItem('hjRoom'); } catch(e){} location.reload(); return; }
+    $('newRoom').dataset.armed = 1; $('newRoom').textContent = '한 번 더 누르면 지금 기록이 지워져요';
+    setTimeout(() => { delete $('newRoom').dataset.armed; $('newRoom').textContent = '새 방으로 처음부터'; }, 4000);
+  };
+  renderQuiz();
   window.__host = { addCandle, candles, state, celebrate, extinguish };
 }
 </script>
@@ -694,10 +837,13 @@ async function startHost(){
   if (!uid){ uid = 'u' + rid(6); try { localStorage.setItem('hjUid', uid); } catch(e){} }
   let myWish = ''; try { myWish = localStorage.getItem('hjWish:' + room) || ''; } catch(e){}
   let phase = 'wish', acked = false, out = false, lastCd = 0;
+  let nick = ''; try { nick = localStorage.getItem('hjName:' + room) || ''; } catch(e){}
+  let S = {}; const myAns = {}; let inGame = false;
   let health = 1.3, max = 1.3, v = 0, hold = 0, mic = null, lastSend = 0, lastSentV = 0;
 
   const net = makeNet(room, (sub, m) => {
     if (sub !== 'state' || m.k !== 'state') return;
+    S = m; inGame = (m.pl || []).includes(uid);
     if (m.title) $('sTitle').textContent = m.title;
     acked = (m.ids || []).includes(uid);
     const wasOut = out;
@@ -709,6 +855,35 @@ async function startHost(){
     render();
   }, n => { if (n) net.send('up', { k: 'hello', u: uid }); });
 
+  setInterval(() => {
+    if (nick && !inGame) net.send('up', { k: 'name', u: uid, name: nick });
+    if (S.phase === 'quiz' && myAns[S.q] != null && !S.rv && !(S.got || []).includes(uid)) net.send('up', { k: 'ans', u: uid, q: S.q, c: myAns[S.q] });
+  }, 1500);
+  $('sNickGo').onclick = () => { const n = $('sNick').value.trim(); if (!n){ $('sNick').focus(); return; } nick = n; try { localStorage.setItem('hjName:' + room, n); } catch(e){} net.send('up', { k: 'name', u: uid, name: nick }); render(); };
+  $('sNick').addEventListener('keydown', e => { if (e.key === 'Enter') $('sNickGo').click(); });
+  function renderQuizS(){
+    const box = $('sQuiz'); const sc = S.sc && S.sc[uid] != null ? S.sc[uid] : 0;
+    if (!S.phase){ box.innerHTML = '<p class="lead">케이크에 연결하는 중…</p>'; return; }
+    if (S.phase === 'lobby'){ box.innerHTML = `<h1>${esc(nick)} 님</h1><p class="lead">${inGame ? '입장 완료! 선생님이 시작하면 문제가 떠요.' : '들어가는 중…'}</p>`; return; }
+    if (S.phase === 'rank'){
+      const r = S.rk && S.rk[uid];
+      box.innerHTML = `<p class="lead">최종 결과</p><div class="big">${r ? r + '위' : '-'}</div><p class="lead">${sc}문제 맞혔어요. 화면에서 1, 2, 3위를 확인해 보세요!</p>`; return;
+    }
+    const q = S.q, Q = QUIZ[q]; if (!Q) return;
+    const mine = myAns[q];
+    const sent = (S.got || []).includes(uid);
+    let foot = '';
+    if (S.rv){ foot = mine === S.a ? `<div class="big">정답!</div>` : `<p class="lead" style="margin-top:14px">아쉬워요. 정답은 ${NUMS[S.a]}번이에요</p>`; foot += `<p class="small">지금까지 ${sc}점</p>`; }
+    else if (mine != null) foot = `<p class="small">${sent ? '답을 냈어요. 정답 공개를 기다려요' : '보내는 중…'}</p>`;
+    box.innerHTML = `<p class="qnum" style="color:var(--gold);margin-bottom:6px">Q${q + 1} / ${QUIZ.length}</p><div class="sQ">${esc(Q.q)}</div>
+      <div class="sopts">${Q.o.map((o, i) => `<button class="sopt ${mine === i ? 'sel' : ''} ${S.rv && i === S.a ? 'right' : ''}" data-i="${i}">${NUMS[i]} ${esc(o)}</button>`).join('')}</div>${foot}`;
+    if (!S.rv && !inGame) box.insertAdjacentHTML('beforeend', '<p class="small">입장 확인 중…</p>');
+    box.querySelectorAll('.sopt').forEach(b => b.onclick = () => {
+      if (S.rv || sent || !inGame) return;
+      myAns[q] = +b.dataset.i; net.send('up', { k: 'ans', u: uid, q, c: myAns[q] }); renderQuizS();
+    });
+  }
+  const esc = t => String(t).replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
   function sendWish(){ if (myWish) net.send('up', { k: 'wish', u: uid, text: myWish }); }
   setInterval(() => { if (myWish && !acked) sendWish(); }, 2500);
 
@@ -735,6 +910,10 @@ async function startHost(){
   function puff(){ for (let i = 0; i < 4; i++){ const s = document.createElement('div'); s.className = 'smoke'; s.style.setProperty('--dx', ((Math.random() - .5) * 60) + 'px'); s.style.animationDelay = (i * 0.15) + 's'; $('candleBox').appendChild(s); setTimeout(() => s.remove(), 3000); } }
 
   function render(){
+    const quizPhase = !S.phase || ['lobby', 'quiz', 'rank'].includes(S.phase);
+    $('sName').classList.toggle('hidden', !(quizPhase && !nick));
+    $('sQuiz').classList.toggle('hidden', !(quizPhase && nick));
+    if (quizPhase){ $('sWrite').classList.add('hidden'); $('sCandle').classList.add('hidden'); if (nick) renderQuizS(); return; }
     const wrote = !!myWish;
     $('sWrite').classList.toggle('hidden', wrote);
     $('sCandle').classList.toggle('hidden', !wrote);
