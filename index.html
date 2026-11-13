@@ -288,10 +288,11 @@ async function startHost(){
   const pmrem = new THREE.PMREMGenerator(renderer);
   scene.environment = pmrem.fromScene(new RoomEnvironment(renderer), 0.04).texture;
   const camera = new THREE.PerspectiveCamera(34, innerWidth / innerHeight, 0.1, 100);
+  let lookY = 1.35;
   function frameCamera(){
     camera.aspect = innerWidth / innerHeight;
     const d = camera.aspect < 1 ? 10.5 : 7.6;
-    camera.position.set(0, 4.1, d); camera.lookAt(0, 1.35, 0); camera.updateProjectionMatrix();
+    camera.position.set(0, 3.4 + lookY * 0.5, d); camera.lookAt(0, lookY, 0); camera.updateProjectionMatrix();
     renderer.setSize(innerWidth, innerHeight);
   }
   frameCamera(); addEventListener('resize', frameCamera);
@@ -306,7 +307,7 @@ async function startHost(){
   const world = new THREE.Group(); scene.add(world);
   const cakeHolder = new THREE.Group(); world.add(cakeHolder);
   const candleHolder = new THREE.Group(); world.add(candleHolder);
-  let topY = 1.81, topR = 1.0;
+  let topY = 1.81, topR = 1.0, candleK = 1;
 
   function std(color, rough=0.55, extra={}){ return new THREE.MeshStandardMaterial({ color, roughness: rough, metalness: 0, ...extra }); }
   function buildCake(){
@@ -376,10 +377,13 @@ async function startHost(){
   function layout(){
     const n = candles.length; if (!n) return;
     const rings = n <= 8 ? [0.55] : [0.84, 0.6, 0.36, 0.12];
+    const full = rings.reduce((t, r) => t + Math.max(1, Math.floor(2 * Math.PI * r * topR / 0.27)), 0);
+    const spacing = n > full ? Math.max(0.13, 0.27 * Math.sqrt(full / n)) : 0.27;
+    candleK = spacing / 0.27;
     let left = n, idx = 0;
     for (let r = 0; r < rings.length && left > 0; r++){
       const rad = rings[r] * topR;
-      const cap = n <= 8 ? n : Math.max(1, Math.floor(2 * Math.PI * rad / 0.27));
+      const cap = n <= 8 ? n : Math.max(1, Math.floor(2 * Math.PI * rad / spacing));
       const k = r === rings.length - 1 ? left : Math.min(cap, left);
       for (let j = 0; j < k; j++, idx++){
         const a = j / k * Math.PI * 2 + r * 0.4 + Math.PI / 2;
@@ -581,6 +585,20 @@ async function startHost(){
     candleModel = obj;
     candles.forEach((c, i) => { candleHolder.remove(c.g); Object.assign(c, makeCandleMesh(i)); candleHolder.add(c.g); c.g.position.copy(c.target); });
   }
+  const procCake = cakeHolder.children[0]; let glbCake = null;
+  function setCake(obj, opt = {}){
+    obj.traverse(o => { if (o.isMesh){ o.castShadow = o.receiveShadow = true; } });
+    const box = new THREE.Box3().setFromObject(obj), size = new THREE.Vector3(), ctr = new THREE.Vector3(); box.getSize(size); box.getCenter(ctr);
+    const k = 3.4 / Math.max(size.x, size.z);
+    obj.scale.setScalar(k); obj.position.set(-ctr.x * k, -box.min.y * k, -ctr.z * k);
+    cakeHolder.clear(); cakeHolder.add(obj);
+    topY = (opt.surfaceY != null ? opt.surfaceY - box.min.y : size.y) * k;
+    topR = opt.innerR != null ? opt.innerR * k / 0.84 : Math.min(size.x, size.z) * k / 2 * 0.72;
+    lookY = topY * 0.75 + 0.35; frameCamera(); layout();
+  }
+  function useProcCake(){ cakeHolder.clear(); cakeHolder.add(procCake); topY = 1.81; topR = 1.0; lookY = 1.35; frameCamera(); layout(); }
+  loader.load('./assets/cake.glb', g => { glbCake = g.scene; setCake(glbCake, { surfaceY: 0.099, innerR: 0.058 }); }, undefined, () => {});
+  addEventListener('keydown', e => { if ((e.key === 'c' || e.key === 'C' || e.key === 'ㅊ') && !e.target.isContentEditable && !/INPUT|TEXTAREA/.test(e.target.tagName) && glbCake){ if (cakeHolder.children[0] === procCake) setCake(glbCake, { surfaceY: 0.099, innerR: 0.058 }); else useProcCake(); } });
   loader.load('./assets/candle.glb', g => setCandleModel(g.scene), undefined, () => {});
   addEventListener('dragover', e => e.preventDefault());
   addEventListener('drop', async e => {
@@ -592,12 +610,7 @@ async function startHost(){
       if (/candle|초|캔들/i.test(f.name)){
         setCandleModel(obj); toast('초 모양을 바꿨어요');
       } else {
-        const box = new THREE.Box3().setFromObject(obj), size = new THREE.Vector3(), ctr = new THREE.Vector3(); box.getSize(size); box.getCenter(ctr);
-        const k = 3.2 / Math.max(size.x, size.z);
-        obj.scale.setScalar(k); obj.position.set(-ctr.x * k, -box.min.y * k, -ctr.z * k);
-        cakeHolder.clear(); cakeHolder.add(obj);
-        topY = size.y * k; topR = Math.min(size.x, size.z) * k / 2 * 0.72;
-        layout(); toast('케이크를 바꿨어요');
+        setCake(obj); toast('케이크를 바꿨어요');
       }
     }, undefined, () => toast('파일을 못 읽었어요'));
   });
@@ -624,7 +637,7 @@ async function startHost(){
       // pop-in + glide to place
       const age = (now - c.born) / 500;
       const s = age <= 0 ? 0.0001 : age >= 1 ? 1 : 1 + 2.7 * Math.pow(age - 1, 3) + 1.7 * Math.pow(age - 1, 2);
-      c.g.scale.setScalar(Math.max(0.0001, s * 1.5));
+      c.g.scale.setScalar(Math.max(0.0001, s * 1.5 * (0.6 + 0.4 * candleK)));
       c.g.position.lerp(c.target, 0.12);
       const own = now - c.studentT < 700 ? c.studentV : 0;
       const wind = blowEnabled && state.phase !== 'done' ? Math.max(hostBlow, own, c.id.startsWith('p:') ? crowd * 0.9 : crowd * 0.35) : 0;
