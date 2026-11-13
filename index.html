@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>같이 불어요 · 생일 케이크</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@700&family=Gowun+Dodum&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg1:#1b0f12; --bg2:#3a1c22; --cream:#fff4e8; --pink:#f6a9bd; --gold:#ffd27a; --ink:#fff7ef;
+    --muted:rgba(255,240,228,.62); --glass:rgba(255,244,232,.08); --line:rgba(255,236,220,.16);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;overflow:hidden;background:var(--bg1);color:var(--ink);font-family:"Gowun Dodum",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+  button{font:inherit;color:inherit;cursor:pointer;border:0;background:none}
+  .bg{position:fixed;inset:0;background:radial-gradient(120% 90% at 50% 75%,#5a2a2c 0%,var(--bg2) 35%,var(--bg1) 75%);transition:filter 1.6s ease}
+  body.dark .bg{filter:brightness(.42) saturate(.8)}
+  .bokeh{position:fixed;inset:0;pointer-events:none;overflow:hidden}
+  .bokeh i{position:absolute;border-radius:50%;background:radial-gradient(circle,rgba(255,210,140,.35),rgba(255,210,140,0) 70%);animation:drift linear infinite;transition:opacity 1.6s}
+  body.dark .bokeh i{opacity:.25}
+  @keyframes drift{from{transform:translateY(20px)}to{transform:translateY(-40px)}}
+  .hidden{display:none!important}
+
+  /* ===== host ===== */
+  #stage{position:fixed;inset:0}
+  #stage canvas{display:block}
+  .title{position:fixed;top:28px;left:0;right:0;text-align:center;font-family:"Gowun Batang",serif;font-size:clamp(28px,4.2vw,56px);letter-spacing:-.01em;text-shadow:0 2px 30px rgba(255,190,120,.35);outline:none;pointer-events:auto;z-index:5}
+  .subtitle{position:fixed;top:calc(28px + clamp(40px,5.6vw,74px));left:0;right:0;text-align:center;color:var(--muted);font-size:clamp(15px,1.5vw,20px);z-index:5}
+  .join{position:fixed;right:22px;top:22px;width:230px;padding:16px;border-radius:18px;background:var(--glass);border:1px solid var(--line);backdrop-filter:blur(10px);z-index:6;text-align:center}
+  .join .qr{background:#fff;border-radius:12px;padding:8px;margin:0 auto 10px;width:150px;height:150px}
+  .join .qr svg{width:100%;height:100%;display:block}
+  .join .code{font-size:13px;color:var(--muted);word-break:break-all;margin-bottom:8px}
+  .join .stat{font-size:15px;margin-top:8px}
+  .pill{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:999px;background:rgba(255,244,232,.12);border:1px solid var(--line);font-size:14px;transition:background .2s}
+  .pill:hover{background:rgba(255,244,232,.22)}
+  .pill.primary{background:linear-gradient(180deg,#ffcf86,#f3a35f);color:#3a1a10;border-color:transparent;font-weight:700}
+  .pill.on{background:rgba(160,255,190,.18);border-color:rgba(160,255,190,.4)}
+  .bar{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);display:flex;gap:8px;flex-wrap:wrap;justify-content:center;padding:10px;border-radius:999px;background:rgba(20,10,12,.45);border:1px solid var(--line);backdrop-filter:blur(10px);z-index:6;max-width:calc(100vw - 30px)}
+  .status{position:fixed;left:0;right:0;bottom:88px;text-align:center;color:var(--muted);font-size:16px;z-index:5;pointer-events:none}
+  .cam{position:fixed;left:22px;top:22px;width:200px;border-radius:16px;overflow:hidden;background:#000;border:1px solid var(--line);z-index:6}
+  .cam video{width:100%;display:block;transform:scaleX(-1)}
+  .cam .meter{position:absolute;left:10px;right:10px;bottom:10px;height:8px;border-radius:9px;background:rgba(255,255,255,.2);overflow:hidden}
+  .cam .meter b{display:block;height:100%;width:0;background:linear-gradient(90deg,#ffd27a,#ff8a5b);transition:width .08s}
+  .cam .lbl{position:absolute;left:10px;top:8px;font-size:12px;padding:3px 8px;border-radius:99px;background:rgba(0,0,0,.45)}
+  .cam .sens{display:flex;align-items:center;gap:6px;padding:8px 10px;background:rgba(20,10,12,.8);font-size:12px}
+  .cam .sens input{flex:1}
+  .count{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;font-family:"Gowun Batang",serif;font-size:min(30vw,260px);color:#fff;text-shadow:0 0 60px rgba(255,200,120,.7);pointer-events:none;z-index:8;opacity:0}
+  .count.show{animation:pop 1s ease forwards}
+  @keyframes pop{0%{opacity:0;transform:scale(.6)}25%{opacity:1;transform:scale(1)}80%{opacity:1}100%{opacity:0;transform:scale(1.15)}}
+  .wish{position:fixed;left:0;top:0;z-index:7;max-width:260px;padding:10px 16px;border-radius:16px;background:rgba(255,240,220,.1);border:1px solid rgba(255,220,170,.28);box-shadow:0 0 30px rgba(255,200,120,.18);font-size:clamp(14px,1.25vw,18px);line-height:1.4;color:#fff6ea;backdrop-filter:blur(6px);cursor:pointer;opacity:0;will-change:transform;white-space:pre-wrap;word-break:keep-all}
+  .wish.big{z-index:9}
+  .zoom{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:10;background:rgba(10,4,6,.6);backdrop-filter:blur(6px)}
+  .zoom div{max-width:min(900px,80vw);font-family:"Gowun Batang",serif;font-size:clamp(28px,4vw,54px);line-height:1.35;text-align:center;text-shadow:0 0 40px rgba(255,200,120,.5)}
+  .finale{position:fixed;left:0;right:0;bottom:96px;padding:30px 0 20px;background:linear-gradient(180deg,rgba(20,8,10,0),rgba(20,8,10,.55) 45%,rgba(20,8,10,0));text-align:center;font-family:"Gowun Batang",serif;font-size:clamp(26px,3.4vw,46px);opacity:0;transition:opacity 2s;z-index:6;pointer-events:none;text-shadow:0 0 40px rgba(255,200,120,.5)}
+  .finale.show{opacity:1}
+  #fx{position:fixed;inset:0;pointer-events:none;z-index:7}
+  .modal{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(10,4,6,.55);z-index:20}
+  .modal .box{width:min(560px,92vw);padding:24px;border-radius:22px;background:#2a1519;border:1px solid var(--line)}
+  .modal h3{font-family:"Gowun Batang",serif;font-size:24px;margin-bottom:6px}
+  .modal p{color:var(--muted);font-size:14px;margin-bottom:12px;line-height:1.5}
+  textarea,input[type=text]{width:100%;font:inherit;color:var(--ink);background:rgba(255,244,232,.07);border:1px solid var(--line);border-radius:14px;padding:12px 14px;outline:none;resize:vertical}
+  textarea:focus,input[type=text]:focus{border-color:rgba(255,210,140,.6)}
+  .row{display:flex;gap:8px;justify-content:flex-end;margin-top:12px}
+  .preview{max-height:160px;overflow:auto;margin-top:10px;font-size:14px;color:var(--muted)}
+  .preview li{margin-left:18px;margin-bottom:2px}
+  body.clean .join,body.clean .bar,body.clean .cam,body.clean .status{opacity:0;pointer-events:none}
+  .hint{position:fixed;right:22px;bottom:26px;font-size:12px;color:var(--muted);z-index:6}
+  body.clean .hint{opacity:.35}
+  .toast{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);padding:14px 20px;border-radius:14px;background:rgba(20,10,12,.85);border:1px solid var(--line);z-index:30;font-size:15px}
+
+  /* ===== student ===== */
+  .st{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;text-align:center;z-index:3}
+  .st h1{font-family:"Gowun Batang",serif;font-size:clamp(26px,7vw,40px);margin-bottom:8px}
+  .st .lead{color:var(--muted);font-size:16px;margin-bottom:22px;line-height:1.5}
+  .st .card{width:min(420px,100%)}
+  .st .btn{width:100%;padding:14px;border-radius:14px;margin-top:10px;font-size:17px}
+  .candleBox{position:relative;width:120px;height:300px;margin:6px auto 18px}
+  .stick{position:absolute;left:50%;bottom:0;width:34px;height:200px;margin-left:-17px;border-radius:8px 8px 4px 4px;background:repeating-linear-gradient(135deg,#ffe3ec 0 14px,#f6a9bd 14px 28px);box-shadow:inset -6px 0 10px rgba(0,0,0,.12)}
+  .wick{position:absolute;left:50%;bottom:200px;width:3px;height:14px;margin-left:-1.5px;background:#3a2a22;border-radius:2px}
+  .flameWrap{position:absolute;left:50%;bottom:210px;width:0;height:0}
+  .flame{position:absolute;left:-22px;bottom:0;width:44px;height:80px;transform-origin:50% 100%;transition:opacity .4s}
+  .flame .o{position:absolute;inset:0;border-radius:50% 50% 50% 50%/62% 62% 38% 38%;background:radial-gradient(ellipse at 50% 72%,#fff 0%,#fff3b0 22%,#ffc05a 48%,rgba(255,120,40,.0) 75%);filter:blur(1px);animation:flick .12s infinite alternate}
+  .flame .g{position:absolute;left:-60px;right:-60px;top:-50px;bottom:-40px;border-radius:50%;background:radial-gradient(circle at 50% 60%,rgba(255,190,100,.45),rgba(255,160,80,0) 65%)}
+  @keyframes flick{from{transform:scale(1,1)}to{transform:scale(.96,1.04)}}
+  .smoke{position:absolute;left:50%;bottom:214px;width:16px;height:16px;margin-left:-8px;border-radius:50%;background:rgba(220,210,205,.5);filter:blur(4px);animation:smoke 2.2s ease-out forwards}
+  @keyframes smoke{to{transform:translate(var(--dx),-170px) scale(4);opacity:0}}
+  .gauge{height:10px;border-radius:9px;background:rgba(255,255,255,.12);overflow:hidden;margin:12px 0 4px}
+  .gauge b{display:block;height:100%;width:0;background:linear-gradient(90deg,#ffd27a,#ff8a5b);transition:width .08s}
+  .myWish{margin-top:8px;font-family:"Gowun Batang",serif;font-size:22px;line-height:1.4}
+  .floatUp{animation:floatUp 4s ease-out forwards}
+  @keyframes floatUp{from{transform:translateY(40px);opacity:0}to{transform:translateY(0);opacity:1}}
+  .small{font-size:13px;color:var(--muted);margin-top:10px;line-height:1.5}
+</style>
+<script type="importmap">
+{ "imports": { "three": "./lib/three/build/three.module.js", "three/addons/": "./lib/three/examples/jsm/" } }
+</script>
+<script src="./lib/mqtt.min.js"></script>
+<script src="./lib/qrcode.js"></script>
+</head>
+<body>
+<div class="bg"></div>
+<div class="bokeh" id="bokeh"></div>
+
+<!-- landing -->
+<div class="st hidden" id="landing">
+  <div class="card">
+    <h1>같이 불어요</h1>
+    <p class="lead">학생은 선생님이 보내준 링크로 들어와 주세요.</p>
+    <button class="pill primary btn" id="beHost">선생님으로 케이크 열기</button>
+  </div>
+</div>
+
+<!-- host -->
+<div id="host" class="hidden">
+  <div id="stage"></div>
+  <div class="title" id="title" contenteditable spellcheck="false">오늘, 같이 소원 빌어요</div>
+  <div class="subtitle" id="subtitle">링크로 들어와서 소원을 하나씩 적어 주세요</div>
+  <div class="join" id="join">
+    <div class="qr" id="qr"></div>
+    <div class="code" id="joinUrl"></div>
+    <button class="pill" id="copyLink">링크 복사</button>
+    <div class="stat" id="stat">들어온 사람 0 · 켜진 초 0</div>
+    <div class="small" id="net">연결 중…</div>
+  </div>
+  <div class="cam hidden" id="cam">
+    <video id="video" playsinline muted></video>
+    <span class="lbl" id="camLbl">입 모양 찾는 중</span>
+    <div class="meter"><b id="meter"></b></div>
+    <div class="sens">민감도 <input type="range" id="sens" min="0.15" max="0.7" step="0.01" value="0.38"></div>
+  </div>
+  <div class="status" id="status">스페이스바를 누르고 있어도 불 수 있어요</div>
+  <div class="bar" id="bar">
+    <button class="pill" id="btnPaste">채팅 붙여넣기</button>
+    <button class="pill" id="btnCam">카메라로 후~</button>
+    <button class="pill" id="btnMic">마이크도 듣기</button>
+    <button class="pill primary" id="btnBlow">하나 둘 셋, 후~</button>
+    <button class="pill" id="btnReset">다시 켜기</button>
+  </div>
+  <div class="hint">H: 버튼 숨기기 · Space: 불기 · 케이크 .glb 파일을 끌어다 놓으면 바뀌어요</div>
+  <div class="count" id="count"></div>
+  <div class="finale" id="finale">모두의 소원이 이뤄지길</div>
+  <canvas id="fx"></canvas>
+  <div class="modal hidden" id="pasteModal">
+    <div class="box">
+      <h3>채팅에서 소원 가져오기</h3>
+      <p>줌 채팅을 통째로 복사해서 붙여 넣으면 이름이랑 시간은 빼고 소원만 남겨요. 한 줄에 소원 하나예요.</p>
+      <textarea id="pasteText" rows="7" placeholder="여기에 붙여 넣기"></textarea>
+      <ul class="preview" id="pastePreview"></ul>
+      <div class="row"><button class="pill" id="pasteCancel">닫기</button><button class="pill primary" id="pasteOk">초 켜기</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- student -->
+<div id="student" class="hidden">
+  <div class="st">
+    <div class="card" id="sWrite">
+      <h1 id="sTitle">오늘, 같이 소원 빌어요</h1>
+      <p class="lead">요즘 바라는 거 하나만 적어 주세요.<br>이름 없이 케이크에 초로 켜져요.</p>
+      <textarea id="sWish" rows="3" maxlength="80" placeholder="예) 이번 겨울엔 푹 쉬고 싶어요"></textarea>
+      <button class="pill primary btn" id="sSend">소원 보내기</button>
+    </div>
+    <div class="card hidden" id="sCandle">
+      <div class="candleBox" id="candleBox">
+        <div class="stick"></div><div class="wick"></div>
+        <div class="flameWrap"><div class="flame" id="sFlame"><div class="g"></div><div class="o"></div></div></div>
+      </div>
+      <p class="lead" id="sMsg">보내는 중…</p>
+      <div id="sBlowUI">
+        <button class="pill btn" id="sMic">마이크 켜기 (불어서 끄려면 필요해요)</button>
+        <div class="gauge"><b id="sGauge"></b></div>
+        <button class="pill btn" id="sHold">마이크가 안 되면 꾹 눌러서 불기</button>
+      </div>
+      <div class="myWish hidden" id="sMine"></div>
+      <p class="small" id="sEdit"><a href="#" id="sEditLink" style="color:inherit">소원 다시 쓰기</a></p>
+    </div>
+  </div>
+</div>
+<div class="count" id="sCount"></div>
+
+<script>
+/* ---------- shared: tiny pub/sub over several public MQTT brokers ---------- */
+const BROKERS = [
+  { url: 'wss://broker.emqx.io:8084/mqtt' },
+  { url: 'wss://broker.hivemq.com:8884/mqtt' },
+  { url: 'wss://public.cloud.shiftr.io', username: 'public', password: 'public' },
+];
+const rid = (n=6) => Array.from(crypto.getRandomValues(new Uint8Array(n)), b => 'abcdefghjkmnpqrstuvwxyz23456789'[b % 31]).join('');
+function makeNet(room, onMsg, onStatus){
+  const base = 'hjbday26/' + room;
+  const seen = new Set(); const seenQ = [];
+  const clients = [];
+  let up = 0;
+  const report = () => onStatus && onStatus(clients.filter(c => c.connected).length, BROKERS.length);
+  for (const b of BROKERS){
+    let c;
+    try {
+      c = mqtt.connect(b.url, { clientId: 'hj' + rid(10), keepalive: 30, reconnectPeriod: 2500, connectTimeout: 9000, clean: true, username: b.username, password: b.password });
+    } catch(e){ continue; }
+    clients.push(c);
+    c.on('connect', () => { c.subscribe(base + '/#', { qos: 0 }); report(); });
+    c.on('close', report); c.on('offline', report); c.on('error', () => {});
+    c.on('message', (topic, payload) => {
+      let m; try { m = JSON.parse(payload.toString()); } catch(e){ return; }
+      if (m.m){ if (seen.has(m.m)) return; seen.add(m.m); seenQ.push(m.m); if (seenQ.length > 2000) seen.delete(seenQ.shift()); }
+      onMsg(topic.slice(base.length + 1), m);
+    });
+  }
+  return {
+    send(sub, obj, retain=false){
+      obj.m = rid(8);
+      const s = JSON.stringify(obj);
+      for (const c of clients) if (c.connected) c.publish(base + '/' + sub, s, { qos: 0, retain });
+    },
+    count(){ return clients.filter(c => c.connected).length; },
+  };
+}
+/* bokeh dots */
+(() => {
+  const el = document.getElementById('bokeh');
+  for (let i = 0; i < 26; i++){
+    const d = document.createElement('i'); const s = 30 + Math.random() * 140;
+    d.style.cssText = `width:${s}px;height:${s}px;left:${Math.random()*100}%;top:${Math.random()*100}%;animation-duration:${8+Math.random()*12}s;animation-direction:${Math.random()<.5?'alternate':'alternate-reverse'};animation-iteration-count:infinite;opacity:${.25+Math.random()*.5}`;
+    el.appendChild(d);
+  }
+})();
+
+/* blow detection from a microphone stream: low-band energy above a moving noise floor */
+function micBlower(stream){
+  const ac = new (window.AudioContext || window.webkitAudioContext)();
+  const src = ac.createMediaStreamSource(stream);
+  const an = ac.createAnalyser(); an.fftSize = 1024; an.smoothingTimeConstant = 0.5;
+  src.connect(an);
+  const buf = new Uint8Array(an.frequencyBinCount);
+  const hz = ac.sampleRate / an.fftSize;
+  const lo = Math.max(1, Math.round(60 / hz)), hi = Math.round(1200 / hz);
+  let floor = 0.15;
+  return {
+    ac,
+    read(){
+      an.getByteFrequencyData(buf);
+      let s = 0; for (let i = lo; i <= hi; i++) s += buf[i];
+      const lvl = s / ((hi - lo + 1) * 255);
+      floor = lvl < floor ? floor * 0.9 + lvl * 0.1 : floor * 0.998 + lvl * 0.002;
+      return Math.max(0, Math.min(1, (lvl - floor - 0.12) / 0.3));
+    }
+  };
+}
+</script>
+
+<!-- ======================= HOST ======================= -->
+<script type="module">
+const params = new URLSearchParams(location.search);
+const room = params.get('room');
+if (room){ /* student handled below */ }
+else if (!params.has('host')){
+  document.getElementById('landing').classList.remove('hidden');
+  document.getElementById('beHost').onclick = () => { location.search = '?host'; };
+}
+else startHost();
+
+async function startHost(){
+  const THREE = await import('three');
+  const { GLTFLoader } = await import('three/addons/loaders/GLTFLoader.js');
+  const { RoomEnvironment } = await import('three/addons/environments/RoomEnvironment.js');
+  const $ = id => document.getElementById(id);
+  $('host').classList.remove('hidden');
+
+  /* ---------- room ---------- */
+  let myRoom; try { myRoom = localStorage.getItem('hjRoom'); } catch(e){}
+  if (!myRoom){ myRoom = rid(5); try { localStorage.setItem('hjRoom', myRoom); } catch(e){} }
+  const joinUrl = location.origin + location.pathname + '?room=' + myRoom;
+  $('joinUrl').textContent = joinUrl.replace(/^https?:\/\//, '');
+  try { const q = qrcode(0, 'M'); q.addData(joinUrl); q.make(); $('qr').innerHTML = q.createSvgTag({ cellSize: 4, margin: 0, scalable: true }); } catch(e){}
+  $('copyLink').onclick = async () => { try { await navigator.clipboard.writeText(joinUrl); toast('링크 복사했어요. 줌 채팅에 붙여 넣어 주세요'); } catch(e){ toast(joinUrl); } };
+
+  /* ---------- three.js scene ---------- */
+  const stage = $('stage');
+  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  renderer.setSize(innerWidth, innerHeight);
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.05;
+  renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  stage.appendChild(renderer.domElement);
+  const scene = new THREE.Scene();
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  scene.environment = pmrem.fromScene(new RoomEnvironment(renderer), 0.04).texture;
+  const camera = new THREE.PerspectiveCamera(34, innerWidth / innerHeight, 0.1, 100);
+  function frameCamera(){
+    camera.aspect = innerWidth / innerHeight;
+    const d = camera.aspect < 1 ? 10.5 : 7.6;
+    camera.position.set(0, 4.1, d); camera.lookAt(0, 1.35, 0); camera.updateProjectionMatrix();
+    renderer.setSize(innerWidth, innerHeight);
+  }
+  frameCamera(); addEventListener('resize', frameCamera);
+
+  const amb = new THREE.HemisphereLight(0xffe9d6, 0x3a1c22, 0.55); scene.add(amb);
+  const key = new THREE.DirectionalLight(0xfff0e0, 0.9); key.position.set(-3, 6, 4); key.castShadow = true;
+  key.shadow.mapSize.set(1024, 1024); key.shadow.camera.left = -3; key.shadow.camera.right = 3; key.shadow.camera.top = 3; key.shadow.camera.bottom = -3; key.shadow.radius = 6;
+  scene.add(key);
+  const candleLight = new THREE.PointLight(0xffa24a, 0, 9, 1.2); candleLight.position.set(0, 2.7, 0.6); scene.add(candleLight);
+  const rim = new THREE.PointLight(0xffc9a0, 6, 12, 1.5); rim.position.set(3, 3, -3); scene.add(rim);
+
+  const world = new THREE.Group(); scene.add(world);
+  const cakeHolder = new THREE.Group(); world.add(cakeHolder);
+  const candleHolder = new THREE.Group(); world.add(candleHolder);
+  let topY = 1.81, topR = 1.0;
+
+  function std(color, rough=0.55, extra={}){ return new THREE.MeshStandardMaterial({ color, roughness: rough, metalness: 0, ...extra }); }
+  function buildCake(){
+    const g = new THREE.Group();
+    const cream = std(0xfff1e2, 0.5), pink = std(0xf4a2b8, 0.35), plateM = std(0xffffff, 0.25), berry = std(0xd8243f, 0.3);
+    const add = (geo, mat, x, y, z) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.castShadow = true; m.receiveShadow = true; g.add(m); return m; };
+    add(new THREE.CylinderGeometry(2.15, 2.05, 0.08, 96), plateM, 0, 0.04, 0);
+    add(new THREE.CylinderGeometry(1.5, 1.5, 1.0, 96), cream, 0, 0.58, 0);
+    add(new THREE.CylinderGeometry(1.05, 1.05, 0.7, 96), cream, 0, 1.43, 0);
+    add(new THREE.CylinderGeometry(1.07, 1.07, 0.05, 96), pink, 0, 1.79, 0);
+    const rimT = add(new THREE.TorusGeometry(1.05, 0.055, 12, 96), pink, 0, 1.77, 0); rimT.rotation.x = Math.PI / 2;
+    for (let i = 0; i < 30; i++){
+      const a = i / 30 * Math.PI * 2 + Math.random() * 0.08, len = 0.06 + Math.random() * 0.28;
+      add(new THREE.CapsuleGeometry(0.05, len, 4, 10), pink, Math.cos(a) * 1.06, 1.76 - len / 2 - 0.02, Math.sin(a) * 1.06);
+    }
+    const ball = new THREE.SphereGeometry(0.085, 16, 12);
+    for (let i = 0; i < 40; i++){ const a = i / 40 * Math.PI * 2; add(ball, cream, Math.cos(a) * 1.5, 0.13, Math.sin(a) * 1.5); }
+    for (let i = 0; i < 34; i++){ const a = i / 34 * Math.PI * 2; add(ball, cream, Math.cos(a) * 1.44, 1.1, Math.sin(a) * 1.44); }
+    const bGeo = new THREE.SphereGeometry(0.11, 16, 12);
+    for (let i = 0; i < 12; i++){ const a = i / 12 * Math.PI * 2 + 0.13; const b = add(bGeo, berry, Math.cos(a) * 1.27, 1.15, Math.sin(a) * 1.27); b.scale.set(1, 1.25, 1); }
+    const sp = new THREE.CylinderGeometry(0.012, 0.012, 0.07, 6);
+    const spColors = [0xfff3a6, 0x9fd8ff, 0xffffff, 0xb6f0b0, 0xffb36b];
+    for (let i = 0; i < 90; i++){
+      const r = Math.sqrt(Math.random()) * 0.98, a = Math.random() * Math.PI * 2;
+      const s = add(sp, std(spColors[i % 5], 0.4), Math.cos(a) * r, 1.825, Math.sin(a) * r);
+      s.rotation.set(Math.PI / 2, 0, Math.random() * Math.PI); s.castShadow = false;
+    }
+    return g;
+  }
+  cakeHolder.add(buildCake());
+
+  /* textures */
+  function canvasTex(w, h, draw){ const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; }
+  const flameTex = canvasTex(128, 256, (x, w, h) => {
+    x.save(); x.translate(w / 2, h * 0.68); x.scale(1, 2.1);
+    const g = x.createRadialGradient(0, 4, 2, 0, 0, 56);
+    g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(.25, 'rgba(255,246,190,1)'); g.addColorStop(.5, 'rgba(255,184,80,.85)'); g.addColorStop(.8, 'rgba(255,110,40,.25)'); g.addColorStop(1, 'rgba(255,90,30,0)');
+    x.fillStyle = g; x.beginPath(); x.arc(0, 0, 56, 0, Math.PI * 2); x.fill(); x.restore();
+  });
+  const glowTex = canvasTex(128, 128, (x, w) => { const g = x.createRadialGradient(w/2, w/2, 0, w/2, w/2, w/2); g.addColorStop(0, 'rgba(255,200,120,.9)'); g.addColorStop(.3, 'rgba(255,160,80,.35)'); g.addColorStop(1, 'rgba(255,140,60,0)'); x.fillStyle = g; x.fillRect(0, 0, w, w); });
+  const smokeTex = canvasTex(64, 64, (x, w) => { const g = x.createRadialGradient(w/2, w/2, 0, w/2, w/2, w/2); g.addColorStop(0, 'rgba(230,225,220,.55)'); g.addColorStop(1, 'rgba(230,225,220,0)'); x.fillStyle = g; x.fillRect(0, 0, w, w); });
+  const stripeColors = ['#f6a9bd', '#9fd0ff', '#ffd27a', '#b8e6b0', '#c9b6ff', '#ffb38a'];
+  const stripeTex = stripeColors.map(col => { const t = canvasTex(64, 256, (x, w, h) => { x.fillStyle = '#fffaf3'; x.fillRect(0, 0, w, h); x.strokeStyle = col; x.lineWidth = 14; for (let y = -w; y < h + w; y += 40){ x.beginPath(); x.moveTo(0, y); x.lineTo(w, y + w * 0.6); x.stroke(); } }); t.wrapS = t.wrapT = THREE.RepeatWrapping; return t; });
+
+  /* candles */
+  let candleModel = null; // optional GLB template
+  const candles = []; // {id, text, group, core, glow, health, max, out, born, target:Vector3, wind}
+  const smokes = [];
+  function makeCandleMesh(i){
+    const g = new THREE.Group();
+    let h = 0.38;
+    if (candleModel){
+      const m = candleModel.clone(true); g.add(m);
+      const box = new THREE.Box3().setFromObject(m); const s = new THREE.Vector3(); box.getSize(s);
+      const k = 0.42 / s.y; m.scale.multiplyScalar(k); m.position.y = -box.min.y * k; h = 0.42;
+    } else {
+      const body = new THREE.Mesh(new THREE.CylinderGeometry(0.034, 0.036, 0.38, 20), new THREE.MeshStandardMaterial({ map: stripeTex[i % stripeTex.length], roughness: 0.45 }));
+      body.position.y = 0.19; body.castShadow = true; g.add(body);
+      const wick = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, 0.05, 6), std(0x2b211c, 0.9)); wick.position.y = 0.405; g.add(wick);
+    }
+    const core = new THREE.Sprite(new THREE.SpriteMaterial({ map: flameTex, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true }));
+    core.center.set(0.5, 0.12); core.position.y = h + 0.02; core.scale.set(0.085, 0.2, 1); g.add(core);
+    const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: 0.5 }));
+    glow.position.y = h + 0.09; glow.scale.set(0.55, 0.55, 1); g.add(glow);
+    return { g, core, glow, h };
+  }
+  function layout(){
+    const n = candles.length; if (!n) return;
+    const rings = n <= 8 ? [0.55] : [0.84, 0.6, 0.36, 0.12];
+    let left = n, idx = 0;
+    for (let r = 0; r < rings.length && left > 0; r++){
+      const rad = rings[r] * topR;
+      const cap = n <= 8 ? n : Math.max(1, Math.floor(2 * Math.PI * rad / 0.27));
+      const k = r === rings.length - 1 ? left : Math.min(cap, left);
+      for (let j = 0; j < k; j++, idx++){
+        const a = j / k * Math.PI * 2 + r * 0.4 + Math.PI / 2;
+        candles[idx].target.set(Math.cos(a) * rad, topY, Math.sin(a) * rad);
+      }
+      left -= k;
+    }
+  }
+  function addCandle(id, text){
+    const ex = candles.find(c => c.id === id);
+    if (ex){ ex.text = text; return ex; }
+    const mesh = makeCandleMesh(candles.length);
+    const max = 1 + Math.random() * 0.6;
+    const c = { id, text, ...mesh, health: max, max, out: false, born: performance.now() + candles.length % 6 * 90, target: new THREE.Vector3(), wind: 0, studentV: 0, studentT: 0 };
+    c.g.scale.setScalar(0.0001);
+    candleHolder.add(c.g); candles.push(c); layout();
+    const tgt = c.target; c.g.position.copy(tgt);
+    if (state.phase === 'done'){ state.phase = 'wish'; clearFloat(); }
+    updateStat(); pushState();
+    return c;
+  }
+  function puffSmoke(c){
+    const wp = new THREE.Vector3(); c.core.getWorldPosition(wp);
+    for (let i = 0; i < 5; i++){
+      const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: smokeTex, transparent: true, depthWrite: false, opacity: 0.5 }));
+      s.position.copy(wp); s.scale.setScalar(0.08); scene.add(s);
+      smokes.push({ s, t: 0, life: 1.8 + Math.random(), vx: (Math.random() - .5) * 0.12, delay: i * 0.12 });
+    }
+  }
+  function extinguish(c, fromNet){
+    if (c.out) return; c.out = true; c.health = 0; puffSmoke(c);
+    if (!fromNet) pushState();
+    updateStat();
+  }
+
+  /* ---------- state & networking ---------- */
+  const state = { phase: 'wish' };
+  const people = new Map(); // uid -> last seen
+  function snapshot(){
+    return { k: 'state', phase: state.phase, title: $('title').textContent.trim(), ids: candles.filter(c => !c.id.startsWith('p:')).map(c => c.id), out: candles.filter(c => c.out).map(c => c.id), cd: state.cd || 0, t: Date.now() };
+  }
+  let pushTimer = 0;
+  function pushState(){ clearTimeout(pushTimer); pushTimer = setTimeout(() => net.send('state', snapshot(), true), 60); }
+  const net = makeNet(myRoom, (sub, m) => {
+    if (sub !== 'up' || !m.u) return;
+    people.set(m.u, performance.now());
+    if (m.k === 'wish' && typeof m.text === 'string'){ addCandle(m.u, m.text.slice(0, 80)); }
+    else if (m.k === 'blow'){ const c = candles.find(c => c.id === m.u); if (c){ c.studentV = +m.v || 0; c.studentT = performance.now(); } }
+    else if (m.k === 'out'){ const c = candles.find(c => c.id === m.u); if (c) extinguish(c); }
+    else if (m.k === 'hello'){ pushState(); }
+    updateStat();
+  }, (n, total) => { $('net').textContent = n ? `실시간 연결 ${n}/${total}` : '연결 중… (인터넷 확인)'; if (n) pushState(); });
+  setInterval(() => net.send('state', snapshot(), true), 4000);
+  $('title').addEventListener('input', pushState);
+
+  function updateStat(){
+    const now = performance.now(); let active = 0; for (const t of people.values()) if (now - t < 20000) active++;
+    const lit = candles.filter(c => !c.out).length;
+    $('stat').textContent = `들어온 사람 ${active} · 켜진 초 ${lit}/${candles.length}`;
+  }
+  setInterval(updateStat, 3000);
+
+  /* ---------- paste from chat ---------- */
+  function parseChat(txt){
+    const out = [];
+    for (let line of txt.split(/\r?\n/)){
+      line = line.trim(); if (!line) continue;
+      line = line.replace(/^\[?\d{1,2}:\d{2}(:\d{2})?\]?\s*/, '');
+      if (/^(from|보낸\s*사람)\s.*?(to|받는\s*사람)\s.*?:?\s*$/i.test(line)) continue; // header-only line
+      line = line.replace(/^(from|보낸\s*사람)\s.+?\s(to|받는\s*사람)\s.+?:\s*/i, '');
+      line = line.replace(/^[^:\t]{1,24}\s*:\t\s*/, '').replace(/^[^:\t]{1,24}\t+/, '');
+      line = line.replace(/^(소원|wish)\s*[:：]\s*/i, '').trim();
+      if (line && !/^(나에게|모두에게|everyone|direct message)/i.test(line)) out.push(line.slice(0, 80));
+    }
+    return out;
+  }
+  $('btnPaste').onclick = () => { $('pasteModal').classList.remove('hidden'); $('pasteText').focus(); };
+  $('pasteCancel').onclick = () => $('pasteModal').classList.add('hidden');
+  $('pasteText').oninput = () => { $('pastePreview').innerHTML = parseChat($('pasteText').value).map(s => `<li>${esc(s)}</li>`).join(''); };
+  $('pasteOk').onclick = () => {
+    const list = parseChat($('pasteText').value); let k = candles.filter(c => c.id.startsWith('p:')).length;
+    list.forEach(t => addCandle('p:' + (k++) + ':' + rid(3), t));
+    $('pasteText').value = ''; $('pastePreview').innerHTML = ''; $('pasteModal').classList.add('hidden');
+    setStatus(`초 ${list.length}개 켰어요`);
+  };
+  const esc = s => s.replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
+
+  /* ---------- host blowing: camera lips, mic, space ---------- */
+  let camScore = 0, micScore = 0, keyBlow = 0, face = null, video = $('video'), lastVideoTime = -1, mic = null;
+  $('btnCam').onclick = async () => {
+    if (face) return;
+    $('btnCam').textContent = '카메라 준비 중…';
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480, facingMode: 'user' }, audio: false });
+      video.srcObject = stream; await video.play();
+      $('cam').classList.remove('hidden');
+      const { FaceLandmarker, FilesetResolver } = await import('./lib/mediapipe/vision_bundle.mjs');
+      const fs = await FilesetResolver.forVisionTasks(new URL('./lib/mediapipe/wasm', location.href).href);
+      const opts = d => ({ baseOptions: { modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task', delegate: d }, runningMode: 'VIDEO', numFaces: 1, outputFaceBlendshapes: true });
+      try { face = await FaceLandmarker.createFromOptions(fs, opts('GPU')); } catch(e){ face = await FaceLandmarker.createFromOptions(fs, opts('CPU')); }
+      $('btnCam').textContent = '카메라 켜짐'; $('btnCam').classList.add('on');
+    } catch(e){
+      console.error(e); $('btnCam').textContent = '카메라로 후~';
+      toast('카메라를 못 켰어요. 브라우저 주소창에서 카메라를 허용해 주세요. 그동안 스페이스바로 불 수 있어요');
+    }
+  };
+  $('btnMic').onclick = async () => {
+    if (mic) return;
+    try {
+      const st = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
+      mic = micBlower(st); $('btnMic').textContent = '마이크 듣는 중'; $('btnMic').classList.add('on');
+    } catch(e){ toast('마이크를 못 켰어요'); }
+  };
+  function readFace(){
+    if (!face || video.readyState < 2) return;
+    if (video.currentTime === lastVideoTime) return; lastVideoTime = video.currentTime;
+    const r = face.detectForVideo(video, performance.now());
+    const bs = r.faceBlendshapes && r.faceBlendshapes[0];
+    if (!bs){ camScore *= 0.8; $('camLbl').textContent = '얼굴이 안 보여요'; return; }
+    const get = n => (bs.categories.find(c => c.categoryName === n) || { score: 0 }).score;
+    const pucker = Math.max(get('mouthPucker'), get('mouthFunnel') * 1.15);
+    const th = +$('sens').value;
+    const v = pucker > th ? Math.min(1, 0.45 + 0.55 * (pucker - th) / (1 - th)) : 0;
+    camScore = camScore * 0.5 + v * 0.5;
+    $('camLbl').textContent = camScore > 0.2 ? '후~ 보여요' : '입을 오므려 후~';
+  }
+  addEventListener('keydown', e => {
+    if (e.code === 'Space' && e.target.tagName === 'BUTTON'){ e.preventDefault(); e.target.blur(); keyBlow = 1; return; }
+    if (e.target.isContentEditable || /INPUT|TEXTAREA/.test(e.target.tagName)) return;
+    if (e.code === 'Space'){ keyBlow = 1; e.preventDefault(); }
+    if (e.key === 'h' || e.key === 'H' || e.key === 'ㅗ') document.body.classList.toggle('clean');
+  });
+  addEventListener('keyup', e => { if (e.code === 'Space') keyBlow = 0; });
+
+  /* ---------- phases ---------- */
+  let blowEnabled = true;
+  $('btnBlow').onclick = () => {
+    if (!candles.length){ toast('아직 켜진 초가 없어요. 학생들 소원을 먼저 받아 주세요'); return; }
+    state.phase = 'blow'; state.cd = Date.now(); blowEnabled = false; pushState();
+    const seq = ['하나', '둘', '셋', '후~!'];
+    seq.forEach((s, i) => setTimeout(() => { const el = $('count'); el.textContent = s; el.classList.remove('show'); void el.offsetWidth; el.classList.add('show'); if (i === seq.length - 1) blowEnabled = true; }, i * 1000));
+    setStatus('다 같이 후~ 불어요');
+  };
+  $('btnReset').onclick = () => {
+    clearFloat();
+    candles.forEach(c => { c.out = false; c.max = 1 + Math.random() * 0.6; c.health = c.max; c.born = performance.now() + Math.random() * 600; c.g.scale.setScalar(0.0001); });
+    state.phase = 'wish'; state.cd = 0; doneAt = 0; pushState(); updateStat(); setStatus('다시 켰어요');
+  };
+
+  /* ---------- wishes floating ---------- */
+  let floats = [], doneAt = 0;
+  function clearFloat(){ floats.forEach(f => f.el.remove()); floats = []; $('finale').classList.remove('show'); document.body.classList.remove('dark'); }
+  function celebrate(){
+    state.phase = 'done'; pushState(); setStatus('');
+    document.body.classList.add('dark');
+    const W = innerWidth, H = innerHeight;
+    const slots = []; // spread wishes across the upper area
+    candles.forEach((c, i) => {
+      const el = document.createElement('div'); el.className = 'wish'; el.textContent = c.text || '';
+      if (!c.text) return;
+      document.body.appendChild(el);
+      const wp = new THREE.Vector3(); c.core.getWorldPosition(wp); wp.project(camera);
+      const sx = (wp.x * .5 + .5) * W, sy = (-wp.y * .5 + .5) * H;
+      let tx, ty, tries = 0;
+      do { tx = 30 + Math.random() * (W - 300 - 270); ty = 165 + Math.random() * (H * 0.5 - 165); tries++; }
+      while (tries < 40 && slots.some(s => Math.abs(s.x - tx) < 250 && Math.abs(s.y - ty) < 62));
+      slots.push({ x: tx, y: ty });
+      el.onclick = () => { const z = document.createElement('div'); z.className = 'zoom'; z.innerHTML = `<div>${esc(c.text)}</div>`; z.onclick = () => z.remove(); document.body.appendChild(z); };
+      floats.push({ el, sx, sy, tx, ty, t0: performance.now() + 500 + i * 260, ph: Math.random() * 6.28 });
+    });
+    setTimeout(() => $('finale').classList.add('show'), 1400 + candles.length * 260);
+    confetti();
+  }
+  function tickFloats(now){
+    for (const f of floats){
+      const t = Math.max(0, Math.min(1, (now - f.t0) / 2600));
+      const e = 1 - Math.pow(1 - t, 3);
+      const bob = Math.sin(now / 1400 + f.ph) * 6 * t;
+      const x = f.sx + (f.tx - f.sx) * e - 40, y = f.sy + (f.ty - f.sy) * e + bob - 20;
+      f.el.style.transform = `translate(${x}px,${y}px) scale(${0.6 + 0.4 * e})`;
+      f.el.style.opacity = now < f.t0 ? 0 : Math.min(1, t * 2);
+    }
+  }
+
+  /* ---------- confetti ---------- */
+  const fx = $('fx'), fctx = fx.getContext('2d'); let parts = [];
+  function sizeFx(){ fx.width = innerWidth * devicePixelRatio; fx.height = innerHeight * devicePixelRatio; } sizeFx(); addEventListener('resize', sizeFx);
+  function confetti(){ const cols = ['#ffd27a', '#f6a9bd', '#fff4e8', '#9fd0ff', '#b8e6b0']; for (let i = 0; i < 160; i++) parts.push({ x: Math.random() * innerWidth, y: -20 - Math.random() * innerHeight * 0.6, vx: (Math.random() - .5) * 40, vy: 60 + Math.random() * 90, r: Math.random() * 6.28, vr: (Math.random() - .5) * 8, w: 5 + Math.random() * 6, h: 8 + Math.random() * 8, c: cols[i % cols.length] }); }
+  function tickFx(dt){
+    fctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0); fctx.clearRect(0, 0, innerWidth, innerHeight);
+    parts = parts.filter(p => p.y < innerHeight + 30);
+    for (const p of parts){ p.x += p.vx * dt + Math.sin(p.y / 40) * 0.6; p.y += p.vy * dt; p.r += p.vr * dt; fctx.save(); fctx.translate(p.x, p.y); fctx.rotate(p.r); fctx.fillStyle = p.c; fctx.globalAlpha = 0.85; fctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h * Math.abs(Math.cos(p.r))); fctx.restore(); }
+  }
+
+  /* ---------- drop a .glb cake / candle ---------- */
+  const loader = new GLTFLoader();
+  function setCandleModel(obj){
+    obj.traverse(o => { if (o.isMesh){ o.castShadow = true; o.receiveShadow = true; } });
+    candleModel = obj;
+    candles.forEach((c, i) => { candleHolder.remove(c.g); Object.assign(c, makeCandleMesh(i)); candleHolder.add(c.g); c.g.position.copy(c.target); });
+  }
+  loader.load('./assets/candle.glb', g => setCandleModel(g.scene), undefined, () => {});
+  addEventListener('dragover', e => e.preventDefault());
+  addEventListener('drop', async e => {
+    e.preventDefault(); const f = e.dataTransfer.files[0]; if (!f) return;
+    if (!/\.(glb|gltf)$/i.test(f.name)){ toast('케이크는 .glb 파일로 넣어 주세요'); return; }
+    const url = URL.createObjectURL(f);
+    loader.load(url, gltf => {
+      const obj = gltf.scene; obj.traverse(o => { if (o.isMesh){ o.castShadow = o.receiveShadow = true; } });
+      if (/candle|초|캔들/i.test(f.name)){
+        setCandleModel(obj); toast('초 모양을 바꿨어요');
+      } else {
+        const box = new THREE.Box3().setFromObject(obj), size = new THREE.Vector3(), ctr = new THREE.Vector3(); box.getSize(size); box.getCenter(ctr);
+        const k = 3.2 / Math.max(size.x, size.z);
+        obj.scale.setScalar(k); obj.position.set(-ctr.x * k, -box.min.y * k, -ctr.z * k);
+        cakeHolder.clear(); cakeHolder.add(obj);
+        topY = size.y * k; topR = Math.min(size.x, size.z) * k / 2 * 0.72;
+        layout(); toast('케이크를 바꿨어요');
+      }
+    }, undefined, () => toast('파일을 못 읽었어요'));
+  });
+
+  document.querySelectorAll('#bar button').forEach(b => b.addEventListener('click', () => b.blur()));
+  /* ---------- ui helpers ---------- */
+  function setStatus(s){ $('status').textContent = s; }
+  function toast(s){ const t = document.createElement('div'); t.className = 'toast'; t.textContent = s; document.body.appendChild(t); setTimeout(() => t.remove(), 2600); }
+
+  /* ---------- loop ---------- */
+  let last = performance.now(), doneE = 0;
+  function loop(now){
+    const dt = Math.min(0.1, (now - last) / 1000); last = now;
+    readFace(); if (mic) micScore = micScore * 0.6 + mic.read() * 0.4;
+    const hostBlow = blowEnabled && state.phase !== 'done' ? Math.max(camScore, micScore, keyBlow) : 0;
+    $('meter').style.width = (Math.max(camScore, micScore) * 100) + '%';
+    // crowd wind from students who are blowing right now
+    let crowd = 0, nb = 0;
+    for (const c of candles) if (now - c.studentT < 700){ crowd += c.studentV; nb++; }
+    crowd = nb ? crowd / nb : 0;
+    let lit = 0;
+    const t = now / 1000;
+    for (const c of candles){
+      // pop-in + glide to place
+      const age = (now - c.born) / 500;
+      const s = age <= 0 ? 0.0001 : age >= 1 ? 1 : 1 + 2.7 * Math.pow(age - 1, 3) + 1.7 * Math.pow(age - 1, 2);
+      c.g.scale.setScalar(Math.max(0.0001, s * 1.5));
+      c.g.position.lerp(c.target, 0.12);
+      const own = now - c.studentT < 700 ? c.studentV : 0;
+      const wind = blowEnabled && state.phase !== 'done' ? Math.max(hostBlow, own, c.id.startsWith('p:') ? crowd * 0.9 : crowd * 0.35) : 0;
+      c.wind = c.wind * 0.85 + wind * 0.15;
+      if (!c.out){
+        if (wind > 0.05) c.health -= wind * dt * (0.75 + (c.id.charCodeAt(2) % 5) * 0.08);
+        else c.health = Math.min(c.max, c.health + dt * 0.12);
+        if (c.health <= 0) extinguish(c);
+      }
+      const f = c.out ? 0 : Math.max(0.15, c.health / c.max);
+      const lit01 = c.out ? 0 : Math.min(1, Math.max(0, (now - c.born - 250) / 350));
+      const flick = 1 + Math.sin(t * 23 + c.born) * 0.06 + Math.sin(t * 37.3 + c.born * 1.7) * 0.05;
+      const sq = 1 - c.wind * 0.45;
+      c.core.scale.set(0.085 * (1 + c.wind * 0.25), 0.2 * f * flick * sq * lit01 + 0.0001, 1);
+      c.core.material.rotation = -c.wind * 0.9 + Math.sin(t * 9 + c.born) * 0.05;
+      c.core.material.opacity = lit01;
+      c.glow.material.opacity = 0.45 * f * lit01 * flick;
+      if (!c.out && lit01 > 0) lit += f;
+    }
+    candleLight.intensity = candleLight.intensity * 0.9 + (Math.min(lit, 14) * 0.9) * 0.1;
+    amb.intensity = 0.35 + 0.2 * Math.min(1, lit / 4);
+    // done?
+    if (candles.length && state.phase === 'blow' && candles.every(c => c.out)){
+      if (!doneAt) doneAt = now; else if (now - doneAt > 900){ doneAt = 0; celebrate(); }
+    }
+    // smoke
+    for (let i = smokes.length - 1; i >= 0; i--){
+      const p = smokes[i]; p.t += dt; if (p.t < p.delay) continue;
+      const k = (p.t - p.delay) / p.life;
+      p.s.position.y += dt * 0.35; p.s.position.x += p.vx * dt; p.s.scale.setScalar(0.08 + k * 0.45); p.s.material.opacity = 0.5 * (1 - k);
+      if (k >= 1){ scene.remove(p.s); p.s.material.dispose(); smokes.splice(i, 1); }
+    }
+    doneE += ((state.phase === 'done' ? 1 : 0) - doneE) * Math.min(1, dt * 1.2);
+    world.position.y = -1.5 * doneE; world.scale.setScalar(1 - 0.22 * doneE); key.intensity = 0.9 - 0.55 * doneE; rim.intensity = 6 - 4 * doneE;
+    world.rotation.y = Math.sin(t * 0.25) * 0.25;
+    tickFloats(now); tickFx(dt);
+    renderer.render(scene, camera);
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+  // test hook
+  window.__host = { addCandle, candles, state, celebrate, extinguish };
+}
+</script>
+
+<!-- ======================= STUDENT ======================= -->
+<script>
+(function(){
+  const room = new URLSearchParams(location.search).get('room');
+  if (!room) return;
+  const $ = id => document.getElementById(id);
+  $('student').classList.remove('hidden');
+  let uid; try { uid = localStorage.getItem('hjUid'); } catch(e){}
+  if (!uid){ uid = 'u' + rid(6); try { localStorage.setItem('hjUid', uid); } catch(e){} }
+  let myWish = ''; try { myWish = localStorage.getItem('hjWish:' + room) || ''; } catch(e){}
+  let phase = 'wish', acked = false, out = false, lastCd = 0;
+  let health = 1.3, max = 1.3, v = 0, hold = 0, mic = null, lastSend = 0, lastSentV = 0;
+
+  const net = makeNet(room, (sub, m) => {
+    if (sub !== 'state' || m.k !== 'state') return;
+    if (m.title) $('sTitle').textContent = m.title;
+    acked = (m.ids || []).includes(uid);
+    const wasOut = out;
+    if ((m.out || []).includes(uid)) out = true;
+    else if (m.phase === 'wish' && out){ out = false; health = max; }
+    if (out && !wasOut) puff();
+    if (m.phase === 'blow' && m.cd && m.cd !== lastCd && Date.now() - m.cd < 6000){ lastCd = m.cd; countdown(); }
+    if (m.phase !== phase){ phase = m.phase; }
+    render();
+  }, n => { if (n) net.send('up', { k: 'hello', u: uid }); });
+
+  function sendWish(){ if (myWish) net.send('up', { k: 'wish', u: uid, text: myWish }); }
+  setInterval(() => { if (myWish && !acked) sendWish(); }, 2500);
+
+  $('sSend').onclick = () => {
+    const t = $('sWish').value.trim(); if (!t){ $('sWish').focus(); return; }
+    myWish = t; try { localStorage.setItem('hjWish:' + room, t); } catch(e){}
+    acked = false; sendWish(); render();
+  };
+  $('sEditLink').onclick = e => { e.preventDefault(); $('sWish').value = myWish; myWish = ''; render(); };
+  $('sMic').onclick = async () => {
+    try {
+      const st = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
+      mic = micBlower(st); $('sMic').textContent = '마이크 켜졌어요. 시작하면 후~'; $('sMic').classList.add('on');
+    } catch(e){ $('sMic').textContent = '마이크를 못 켰어요. 아래 버튼을 꾹 눌러 주세요'; }
+  };
+  const holdOn = e => { e.preventDefault(); hold = 1; }, holdOff = () => { hold = 0; };
+  $('sHold').addEventListener('pointerdown', holdOn); addEventListener('pointerup', holdOff); addEventListener('pointercancel', holdOff);
+
+  let blowOK = false;
+  function countdown(){
+    blowOK = false;
+    ['하나', '둘', '셋', '후~!'].forEach((s, i) => setTimeout(() => { const el = $('sCount'); el.textContent = s; el.classList.remove('show'); void el.offsetWidth; el.classList.add('show'); if (i === 3) blowOK = true; }, i * 1000));
+  }
+  function puff(){ for (let i = 0; i < 4; i++){ const s = document.createElement('div'); s.className = 'smoke'; s.style.setProperty('--dx', ((Math.random() - .5) * 60) + 'px'); s.style.animationDelay = (i * 0.15) + 's'; $('candleBox').appendChild(s); setTimeout(() => s.remove(), 3000); } }
+
+  function render(){
+    const wrote = !!myWish;
+    $('sWrite').classList.toggle('hidden', wrote);
+    $('sCandle').classList.toggle('hidden', !wrote);
+    if (!wrote) return;
+    $('sEdit').classList.toggle('hidden', phase !== 'wish' || out);
+    $('sBlowUI').classList.toggle('hidden', out || phase === 'done');
+    let msg;
+    if (!acked) msg = '케이크로 보내는 중…';
+    else if (phase === 'done') msg = '소원이 하늘로 올라갔어요';
+    else if (out) msg = '꺼졌다! 다른 초들도 꺼지길 기다려요';
+    else if (phase === 'blow') msg = '지금이에요, 후~ 불어요!';
+    else msg = '케이크에 내 초가 켜졌어요. 선생님이 시작하면 같이 불어요';
+    $('sMsg').textContent = msg;
+    const mine = $('sMine');
+    if (phase === 'done'){ if (mine.classList.contains('hidden')){ mine.textContent = '“' + myWish + '”'; mine.classList.remove('hidden'); mine.classList.add('floatUp'); } }
+    else mine.classList.add('hidden');
+  }
+  render();
+
+  let last = performance.now(), doneE = 0;
+  function loop(now){
+    const dt = Math.min(0.1, (now - last) / 1000); last = now;
+    const m = mic ? mic.read() : 0;
+    v = v * 0.6 + Math.max(m, hold) * 0.4;
+    $('sGauge').style.width = (v * 100) + '%';
+    const canBlow = acked && !out && phase === 'blow' && blowOK;
+    if (canBlow){
+      if (v > 0.05) health -= v * dt * 0.8; else health = Math.min(max, health + dt * 0.12);
+      if (health <= 0){ out = true; puff(); net.send('up', { k: 'out', u: uid }); render(); }
+      if (now - lastSend > 220 && (Math.abs(v - lastSentV) > 0.08 || (v > 0.05 && now - lastSend > 500))){ net.send('up', { k: 'blow', u: uid, v: +v.toFixed(2) }); lastSend = now; lastSentV = v; }
+    }
+    const fl = $('sFlame');
+    const f = out ? 0 : Math.max(0.2, health / max);
+    const w = canBlow ? v : 0;
+    fl.style.opacity = out ? 0 : 1;
+    fl.style.transform = `rotate(${w * 38}deg) scale(${1 + w * 0.15}, ${f * (1 - w * 0.4)})`;
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
