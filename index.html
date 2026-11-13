@@ -103,6 +103,16 @@
   .sopt.right{border-color:#9fe6a8;background:rgba(160,255,190,.16)}
   .sQ{font-family:"Gowun Batang",serif;font-size:22px;line-height:1.4;word-break:keep-all}
   .big{font-family:"Gowun Batang",serif;font-size:44px;margin:8px 0}
+  /* ===== viewer (student sees the shared cake) ===== */
+  body.viewer .join,body.viewer .bar,body.viewer .hint,body.viewer .status,body.viewer .cam,body.viewer #subtitle,body.viewer .finale{display:none}
+  body.viewer .title{font-size:clamp(22px,6vw,40px);top:16px;padding:0 16px}
+  body.viewer .st{justify-content:flex-end;padding:16px;pointer-events:none}
+  body.viewer .st .card{pointer-events:auto;background:rgba(30,14,18,.8);border:1px solid var(--line);padding:18px;border-radius:22px;backdrop-filter:blur(10px)}
+  body.viewer .candleBox,body.viewer #sTitle{display:none}
+  body.viewer .st .lead{margin-bottom:12px;font-size:15px}
+  body.viewer .wish{max-width:200px;font-size:13px;padding:7px 12px}
+  .mytag{position:fixed;left:0;top:0;z-index:4;padding:4px 10px;border-radius:99px;background:#ffd27a;color:#3a1a10;font-size:12px;font-weight:700;pointer-events:none;white-space:nowrap}
+  .mytag.hidden{display:none}
   /* ===== student ===== */
   .st{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;text-align:center;z-index:3}
   .st h1{font-family:"Gowun Batang",serif;font-size:clamp(26px,7vw,40px);margin-bottom:8px}
@@ -295,23 +305,25 @@ function micBlower(stream){
 <script type="module">
 const params = new URLSearchParams(location.search);
 const room = params.get('room');
-if (room){ /* student handled below */ }
+if (room){ startHost(true); }
 else if (!params.has('host')){
   document.getElementById('landing').classList.remove('hidden');
   document.getElementById('beHost').onclick = () => { location.search = '?host'; };
 }
 else startHost();
 
-async function startHost(){
+async function startHost(VIEW = false){
   const THREE = await import('three');
   const { GLTFLoader } = await import('three/addons/loaders/GLTFLoader.js');
   const { RoomEnvironment } = await import('three/addons/environments/RoomEnvironment.js');
   const $ = id => document.getElementById(id);
   $('host').classList.remove('hidden');
+  if (VIEW){ document.body.classList.add('viewer'); $('title').contentEditable = 'false'; }
 
   /* ---------- room ---------- */
   let myRoom; try { myRoom = localStorage.getItem('hjRoom'); } catch(e){}
   if (!myRoom){ myRoom = rid(5); try { localStorage.setItem('hjRoom', myRoom); } catch(e){} }
+  if (VIEW) myRoom = room;
   const joinUrl = location.origin + location.pathname + '?room=' + myRoom;
   $('joinUrl').textContent = joinUrl.replace(/^https?:\/\//, '');
   try { const q = qrcode(0, 'M'); q.addData(joinUrl); q.make(); $('qr').innerHTML = q.createSvgTag({ cellSize: 4, margin: 0, scalable: true }); } catch(e){}
@@ -333,8 +345,10 @@ async function startHost(){
   let lookY = 1.35;
   function frameCamera(){
     camera.aspect = innerWidth / innerHeight;
-    const d = camera.aspect < 1 ? 10.5 : 7.6;
-    camera.position.set(0, 3.4 + lookY * 0.5, d); camera.lookAt(0, lookY, 0); camera.updateProjectionMatrix();
+    const d = camera.aspect < 1 ? 7.6 * 0.78 / Math.max(camera.aspect, 0.42) : 7.6;
+    camera.position.set(0, 3.4 + lookY * 0.5, d); camera.lookAt(0, lookY, 0);
+    if (VIEW) camera.setViewOffset(innerWidth, innerHeight, 0, innerHeight * 0.2, innerWidth, innerHeight);
+    camera.updateProjectionMatrix();
     renderer.setSize(innerWidth, innerHeight);
   }
   frameCamera(); addEventListener('resize', frameCamera);
@@ -472,6 +486,7 @@ async function startHost(){
   function snapshot(){
     const snap = { k: 'state', phase: state.phase, title: $('title').textContent.trim(), ids: candles.filter(c => !c.id.startsWith('p:')).map(c => c.id), out: candles.filter(c => c.out).map(c => c.id), cd: state.cd || 0, rs: state.rs || 0, t: Date.now() };
     snap.pl = [...players.keys()];
+    if (state.phase === 'done'){ snap.tx = {}; for (const c of candles) if (!c.id.startsWith('p:')) snap.tx[c.id] = c.text; }
     if (state.phase === 'quiz'){ snap.q = state.q; snap.got = state.q >= 0 ? [...answers[state.q].keys()] : []; }
     if (state.phase === 'answers'){ snap.ai = state.ai; snap.a = KEY[state.ai]; snap.mine = {}; for (const [u, v] of answers[state.ai]) snap.mine[u] = v.c; }
     if (state.phase === 'answers' || state.phase === 'rank'){ snap.sc = {}; for (const [u, p] of players) snap.sc[u] = p.score; }
@@ -483,7 +498,7 @@ async function startHost(){
   const SAVE_KEY = 'hjSave:' + myRoom;
   let restoring = false;
   function save(){
-    if (restoring) return;
+    if (restoring || VIEW) return;
     try { localStorage.setItem(SAVE_KEY, JSON.stringify({ phase: state.phase, q: state.q, ai: state.ai, title: $('title').textContent.trim(),
       players: [...players], answers: answers.map(m => [...m]), candles: candles.map(c => [c.id, c.text, c.out]) })); } catch(e){}
   }
@@ -501,7 +516,7 @@ async function startHost(){
     if (state.phase === 'wish') $('subtitle').textContent = '이제 링크에서 소원을 하나씩 적어 주세요';
     restoring = false; updateStat(); pushState();
   }
-  const net = makeNet(myRoom, (sub, m) => {
+  const net = VIEW ? { send(){}, count(){ return 0; } } : makeNet(myRoom, (sub, m) => {
     if (sub !== 'up' || !m.u) return;
     people.set(String(m.u).split('-')[0], performance.now());
     if (m.k === 'name' && typeof m.name === 'string'){ const p = players.get(m.u); if (p) p.name = m.name.slice(0, 12); else players.set(m.u, { name: m.name.slice(0, 12), score: 0, time: 0 }); renderQuiz(); pushState(); }
@@ -671,8 +686,8 @@ async function startHost(){
       const wp = new THREE.Vector3(); c.core.getWorldPosition(wp); wp.project(camera);
       const sx = (wp.x * .5 + .5) * W, sy = (-wp.y * .5 + .5) * H;
       let tx, ty, tries = 0;
-      do { tx = 30 + Math.random() * (W - 300 - 270); ty = 165 + Math.random() * (H * 0.5 - 165); tries++; }
-      while (tries < 40 && slots.some(s => Math.abs(s.x - tx) < 250 && Math.abs(s.y - ty) < 62));
+      do { tx = VIEW ? 10 + Math.random() * Math.max(10, W - 220) : 30 + Math.random() * (W - 300 - 270); ty = VIEW ? 70 + Math.random() * (H * 0.38 - 70) : 165 + Math.random() * (H * 0.5 - 165); tries++; }
+      while (tries < 40 && slots.some(s => Math.abs(s.x - tx) < (VIEW ? 180 : 250) && Math.abs(s.y - ty) < (VIEW ? 40 : 62)));
       slots.push({ x: tx, y: ty });
       el.onclick = () => { const z = document.createElement('div'); z.className = 'zoom'; z.innerHTML = `<div>${esc(c.text)}</div>`; z.onclick = () => z.remove(); document.body.appendChild(z); };
       floats.push({ el, sx, sy, tx, ty, t0: performance.now() + 500 + i * 260, ph: Math.random() * 6.28 });
@@ -748,7 +763,7 @@ async function startHost(){
   function loop(now){
     const dt = Math.min(0.1, (now - last) / 1000); last = now;
     readFace(); if (mic) micScore = micScore * 0.6 + mic.read() * 0.4;
-    const hostBlow = blowEnabled && state.phase !== 'done' ? Math.max(camScore, micScore, keyBlow) : 0;
+    const hostBlow = !VIEW && blowEnabled && state.phase !== 'done' ? Math.max(camScore, micScore, keyBlow) : 0;
     $('meter').style.width = (Math.max(camScore, micScore) * 100) + '%';
     // crowd wind from students who are blowing right now
     let crowd = 0, nb = 0;
@@ -762,10 +777,12 @@ async function startHost(){
       const s = age <= 0 ? 0.0001 : age >= 1 ? 1 : 1 + 2.7 * Math.pow(age - 1, 3) + 1.7 * Math.pow(age - 1, 2);
       c.g.scale.setScalar(Math.max(0.0001, s * 1.5 * (0.6 + 0.4 * candleK)));
       c.g.position.lerp(c.target, 0.12);
-      const own = now - c.studentT < 700 ? c.studentV : 0;
+      const isMine = VIEW && c.id === window.__myCid;
+      const own = VIEW ? (isMine ? (window.__myBlow || 0) : 0) : (now - c.studentT < 700 ? c.studentV : 0);
+      if (isMine && window.__myOut && !c.out) extinguish(c);
       const wind = blowEnabled && state.phase !== 'done' ? Math.max(hostBlow, own, c.id.startsWith('p:') ? crowd * 0.9 : crowd * 0.35) : 0;
       c.wind = c.wind * 0.85 + wind * 0.15;
-      if (!c.out){
+      if (!c.out && !VIEW){
         if (wind > 0.05) c.health -= wind * dt * (0.75 + (c.id.charCodeAt(2) % 5) * 0.08);
         else c.health = Math.min(c.max, c.health + dt * 0.12);
         if (c.health <= 0) extinguish(c);
@@ -783,7 +800,7 @@ async function startHost(){
     candleLight.intensity = candleLight.intensity * 0.9 + (Math.min(lit, 14) * 0.9) * 0.1;
     amb.intensity = 0.35 + 0.2 * Math.min(1, lit / 4);
     // done?
-    if (candles.length && state.phase !== 'done' && candles.every(c => c.out)){
+    if (VIEW){ if (window.__placeTag) window.__placeTag(); } else if (candles.length && state.phase !== 'done' && candles.every(c => c.out)){
       if (!doneAt) doneAt = now; else if (now - doneAt > 900){ doneAt = 0; celebrate(); }
     }
     // smoke
@@ -802,7 +819,7 @@ async function startHost(){
   }
   requestAnimationFrame(loop);
   // test hook
-  restore();
+  if (!VIEW) restore();
   addEventListener('beforeunload', save);
   $('newRoom').onclick = () => {
     if ($('newRoom').dataset.armed){ try { localStorage.removeItem(SAVE_KEY); localStorage.removeItem('hjRoom'); } catch(e){} location.reload(); return; }
@@ -811,6 +828,32 @@ async function startHost(){
   };
   renderQuiz();
   window.__host = { addCandle, candles, state, celebrate, extinguish };
+  if (VIEW){
+    let lastRsV = null;
+    const tag = document.createElement('div'); tag.className = 'mytag hidden'; tag.textContent = '내 초'; document.body.appendChild(tag);
+    window.__placeTag = () => {
+      const c = candles.find(c => c.id === window.__myCid);
+      if (!c || state.phase === 'done'){ tag.classList.add('hidden'); return; }
+      const wp = new THREE.Vector3(); c.core.getWorldPosition(wp); wp.y += 0.35; wp.project(camera);
+      tag.classList.remove('hidden');
+      tag.style.transform = `translate(${(wp.x * .5 + .5) * innerWidth}px,${(-wp.y * .5 + .5) * innerHeight}px) translate(-50%,-100%)`;
+    };
+    window.__cake = { sync(m){
+      if (!m) return;
+      if (m.title) $('title').textContent = m.title;
+      const ids = m.ids || [], outs = new Set(m.out || []), tx = m.tx || {};
+      for (const id of ids){ const c = candles.find(c => c.id === id) || addCandle(id, tx[id] || ''); if (tx[id]) c.text = tx[id]; }
+      for (let i = candles.length - 1; i >= 0; i--) if (!ids.includes(candles[i].id)){ candleHolder.remove(candles[i].g); candles.splice(i, 1); layout(); }
+      lastRsV = m.rs;
+      for (const c of candles){
+        if (outs.has(c.id)){ if (!c.out) extinguish(c); }
+        else if (c.out && !(c.id === window.__myCid && window.__myOut)){ c.out = false; c.health = c.max; c.born = performance.now(); }
+      }
+      if (m.phase === 'done' && state.phase !== 'done'){ state.phase = 'done'; celebrate(); }
+      else if (m.phase !== 'done'){ if (state.phase === 'done') clearFloat(); state.phase = m.phase; }
+    } };
+    if (window.__lastState) window.__cake.sync(window.__lastState);
+  }
 }
 </script>
 
@@ -826,6 +869,7 @@ async function startHost(){
   let cid = uid; try { cid = localStorage.getItem('hjCid:' + room) || uid; } catch(e){}
   let myWish = ''; try { myWish = localStorage.getItem('hjWish:' + room + ':' + cid) || ''; } catch(e){}
   let lastRs = null;
+  window.__myCid = cid;
   let phase = 'wish', acked = false, out = false, lastCd = 0;
   let nick = ''; try { nick = localStorage.getItem('hjName:' + room) || ''; } catch(e){}
   let S = {}; const myAns = {}; let inGame = false, hostOut = false;
@@ -834,6 +878,7 @@ async function startHost(){
   const net = makeNet(room, (sub, m) => {
     if (sub !== 'state' || m.k !== 'state') return;
     S = m; inGame = (m.pl || []).includes(uid);
+    window.__lastState = m; if (window.__cake) window.__cake.sync(m);
     if (m.title) $('sTitle').textContent = m.title;
     acked = (m.ids || []).includes(cid);
     const wasOut = out;
@@ -894,7 +939,7 @@ async function startHost(){
   };
   $('sEditLink').onclick = e => {
     e.preventDefault();
-    if (out){ cid = uid + '-' + rid(3); try { localStorage.setItem('hjCid:' + room, cid); } catch(e){} out = false; hostOut = false; health = max = 1 + Math.random() * 0.6; acked = false; $('sWish').value = ''; $('sMine').classList.add('hidden'); }
+    if (out){ cid = uid + '-' + rid(3); window.__myCid = cid; window.__myOut = false; try { localStorage.setItem('hjCid:' + room, cid); } catch(e){} out = false; hostOut = false; health = max = 1 + Math.random() * 0.6; acked = false; $('sWish').value = ''; $('sMine').classList.add('hidden'); }
     else $('sWish').value = myWish;
     myWish = ''; render();
   };
@@ -950,6 +995,7 @@ async function startHost(){
       if (health <= 0){ out = true; puff(); net.send('up', { k: 'out', u: cid }); render(); }
       if (now - lastSend > 220 && (Math.abs(v - lastSentV) > 0.08 || (v > 0.05 && now - lastSend > 500))){ net.send('up', { k: 'blow', u: cid, v: +v.toFixed(2) }); lastSend = now; lastSentV = v; }
     }
+    window.__myBlow = canBlow ? v : 0; window.__myOut = out;
     const fl = $('sFlame');
     const f = out ? 0 : Math.max(0.2, health / max);
     const w = canBlow ? v : 0;
