@@ -166,7 +166,7 @@
     <button class="pill" id="copyLink">링크 복사</button>
     <div class="stat" id="stat">지금 접속 0명 · 켜진 초 0</div>
     <div class="small" id="net">연결 중…</div>
-    <button class="small" id="newRoom" style="text-decoration:underline;margin-top:6px">새 방으로 처음부터</button>
+    <button class="small" id="newRoom" style="text-decoration:underline;margin-top:6px">초 전부 지우고 처음부터</button>
   </div>
   <div class="cam hidden" id="cam">
     <video id="video" playsinline muted></video>
@@ -304,7 +304,8 @@ function micBlower(stream){
 <!-- ======================= HOST ======================= -->
 <script type="module">
 const params = new URLSearchParams(location.search);
-const room = params.get('room');
+const SHARED = 'sylvia-bday-1113';
+const room = params.has('host') ? null : (params.get('room') || SHARED);
 if (room){ startHost(true); }
 else if (!params.has('host')){
   document.getElementById('landing').classList.remove('hidden');
@@ -323,8 +324,8 @@ async function startHost(VIEW = false){
   /* ---------- room ---------- */
   let myRoom; try { myRoom = localStorage.getItem('hjRoom'); } catch(e){}
   if (!myRoom){ myRoom = rid(5); try { localStorage.setItem('hjRoom', myRoom); } catch(e){} }
-  if (VIEW) myRoom = room;
-  const joinUrl = location.origin + location.pathname + '?room=' + myRoom;
+  myRoom = VIEW ? room : SHARED;
+  const joinUrl = location.origin + location.pathname;
   $('joinUrl').textContent = joinUrl.replace(/^https?:\/\//, '');
   try { const q = qrcode(0, 'M'); q.addData(joinUrl); q.make(); $('qr').innerHTML = q.createSvgTag({ cellSize: 4, margin: 0, scalable: true }); } catch(e){}
   $('copyLink').onclick = async () => { try { await navigator.clipboard.writeText(joinUrl); toast('링크 복사했어요. 줌 채팅에 붙여 넣어 주세요'); } catch(e){ toast(joinUrl); } };
@@ -477,14 +478,14 @@ async function startHost(VIEW = false){
   }
 
   /* ---------- state & networking ---------- */
-  const state = { phase: 'wish', q: -1, ai: 0, qStart: 0 };
+  const state = { phase: 'wish', q: -1, ai: 0, qStart: 0, ep: rid(6) };
   const KEY = JSON.parse(atob('WzAsMywwLDMsMF0=')); // answers, revealed one by one
   const players = new Map(); // uid -> {name, score, time}
   const answers = QUIZ.map(() => new Map()); // uid -> {c, ms}
   let rankList = [];
   const people = new Map(); // uid -> last seen
   function snapshot(){
-    const snap = { k: 'state', phase: state.phase, title: $('title').textContent.trim(), ids: candles.filter(c => !c.id.startsWith('p:')).map(c => c.id), out: candles.filter(c => c.out).map(c => c.id), cd: state.cd || 0, rs: state.rs || 0, t: Date.now() };
+    const snap = { k: 'state', phase: state.phase, title: $('title').textContent.trim(), ids: candles.filter(c => !c.id.startsWith('p:')).map(c => c.id), out: candles.filter(c => c.out).map(c => c.id), cd: state.cd || 0, rs: state.rs || 0, ep: state.ep, t: Date.now() };
     snap.pl = [...players.keys()];
     if (state.phase === 'done'){ snap.tx = {}; for (const c of candles) if (!c.id.startsWith('p:')) snap.tx[c.id] = c.text; }
     if (state.phase === 'quiz'){ snap.q = state.q; snap.got = state.q >= 0 ? [...answers[state.q].keys()] : []; }
@@ -499,7 +500,7 @@ async function startHost(VIEW = false){
   let restoring = false;
   function save(){
     if (restoring || VIEW) return;
-    try { localStorage.setItem(SAVE_KEY, JSON.stringify({ phase: state.phase, q: state.q, ai: state.ai, title: $('title').textContent.trim(),
+    try { localStorage.setItem(SAVE_KEY, JSON.stringify({ phase: state.phase, q: state.q, ai: state.ai, ep: state.ep, title: $('title').textContent.trim(),
       players: [...players], answers: answers.map(m => [...m]), candles: candles.map(c => [c.id, c.text, c.out]) })); } catch(e){}
   }
   function restore(){
@@ -511,7 +512,7 @@ async function startHost(VIEW = false){
     (d.answers || []).forEach((list, i) => { if (answers[i]) list.forEach(([u, v]) => answers[i].set(u, v)); });
     (d.candles || []).forEach(([id, text, out]) => { const c = addCandle(id, text); if (out){ c.out = true; c.health = 0; } });
     state.phase = 'wish';
-    state.q = d.q ?? -1; state.ai = d.ai || 0; state.qStart = Date.now();
+    state.q = d.q ?? -1; state.ai = d.ai || 0; if (d.ep) state.ep = d.ep; state.qStart = Date.now();
     if (state.phase === 'rank') rankList = [...players.entries()].map(([u, p]) => ({ u, ...p })).sort((a, b) => b.score - a.score || a.time - b.time);
     if (state.phase === 'wish') $('subtitle').textContent = '이제 링크에서 소원을 하나씩 적어 주세요';
     restoring = false; updateStat(); pushState();
@@ -822,9 +823,9 @@ async function startHost(VIEW = false){
   if (!VIEW) restore();
   addEventListener('beforeunload', save);
   $('newRoom').onclick = () => {
-    if ($('newRoom').dataset.armed){ try { localStorage.removeItem(SAVE_KEY); localStorage.removeItem('hjRoom'); } catch(e){} location.reload(); return; }
+    if ($('newRoom').dataset.armed){ try { localStorage.removeItem(SAVE_KEY); } catch(e){} location.reload(); return; }
     $('newRoom').dataset.armed = 1; $('newRoom').textContent = '한 번 더 누르면 지금 기록이 지워져요';
-    setTimeout(() => { delete $('newRoom').dataset.armed; $('newRoom').textContent = '새 방으로 처음부터'; }, 4000);
+    setTimeout(() => { delete $('newRoom').dataset.armed; $('newRoom').textContent = '초 전부 지우고 처음부터'; }, 4000);
   };
   renderQuiz();
   window.__host = { addCandle, candles, state, celebrate, extinguish };
@@ -860,7 +861,8 @@ async function startHost(VIEW = false){
 <!-- ======================= STUDENT ======================= -->
 <script>
 (function(){
-  const room = new URLSearchParams(location.search).get('room');
+  const P = new URLSearchParams(location.search);
+  const room = P.has('host') ? null : (P.get('room') || 'sylvia-bday-1113');
   if (!room) return;
   const $ = id => document.getElementById(id);
   $('student').classList.remove('hidden');
@@ -877,6 +879,11 @@ async function startHost(VIEW = false){
 
   const net = makeNet(room, (sub, m) => {
     if (sub !== 'state' || m.k !== 'state') return;
+    let ep0 = null; try { ep0 = localStorage.getItem('hjEp:' + room); } catch(e){}
+    if (m.ep && m.ep !== ep0){
+      try { localStorage.setItem('hjEp:' + room, m.ep); } catch(e){}
+      if (ep0){ cid = uid + '-' + rid(3); window.__myCid = cid; try { localStorage.setItem('hjCid:' + room, cid); } catch(e){} myWish = ''; out = false; hostOut = false; acked = false; health = max; window.__myOut = false; $('sMine').classList.add('hidden'); }
+    }
     S = m; inGame = (m.pl || []).includes(uid);
     window.__lastState = m; if (window.__cake) window.__cake.sync(m);
     if (m.title) $('sTitle').textContent = m.title;
