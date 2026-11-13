@@ -470,7 +470,7 @@ async function startHost(){
   let rankList = [];
   const people = new Map(); // uid -> last seen
   function snapshot(){
-    const snap = { k: 'state', phase: state.phase, title: $('title').textContent.trim(), ids: candles.filter(c => !c.id.startsWith('p:')).map(c => c.id), out: candles.filter(c => c.out).map(c => c.id), cd: state.cd || 0, t: Date.now() };
+    const snap = { k: 'state', phase: state.phase, title: $('title').textContent.trim(), ids: candles.filter(c => !c.id.startsWith('p:')).map(c => c.id), out: candles.filter(c => c.out).map(c => c.id), cd: state.cd || 0, rs: state.rs || 0, t: Date.now() };
     snap.pl = [...players.keys()];
     if (state.phase === 'quiz'){ snap.q = state.q; snap.got = state.q >= 0 ? [...answers[state.q].keys()] : []; }
     if (state.phase === 'answers'){ snap.ai = state.ai; snap.a = KEY[state.ai]; snap.mine = {}; for (const [u, v] of answers[state.ai]) snap.mine[u] = v.c; }
@@ -503,7 +503,7 @@ async function startHost(){
   }
   const net = makeNet(myRoom, (sub, m) => {
     if (sub !== 'up' || !m.u) return;
-    people.set(m.u, performance.now());
+    people.set(String(m.u).split('-')[0], performance.now());
     if (m.k === 'name' && typeof m.name === 'string'){ const p = players.get(m.u); if (p) p.name = m.name.slice(0, 12); else players.set(m.u, { name: m.name.slice(0, 12), score: 0, time: 0 }); renderQuiz(); pushState(); }
     else if (m.k === 'ans' && state.phase === 'quiz' && m.q === state.q && players.has(m.u) && !answers[m.q].has(m.u) && m.c >= 0 && m.c < 4){ answers[m.q].set(m.u, { c: m.c, ms: Date.now() - state.qStart }); renderQuiz(); pushState(); }
     else if (m.k === 'wish' && typeof m.text === 'string'){ addCandle(m.u, m.text.slice(0, 80)); }
@@ -653,7 +653,7 @@ async function startHost(){
   $('btnReset').onclick = () => {
     clearFloat();
     candles.forEach(c => { c.out = false; c.max = 1 + Math.random() * 0.6; c.health = c.max; c.born = performance.now() + Math.random() * 600; c.g.scale.setScalar(0.0001); });
-    state.phase = 'wish'; state.cd = 0; doneAt = 0; pushState(); updateStat(); setStatus('다시 켰어요');
+    state.phase = 'wish'; state.cd = 0; state.rs = (state.rs || 0) + 1; doneAt = 0; pushState(); updateStat(); setStatus('다시 켰어요');
   };
 
   /* ---------- wishes floating ---------- */
@@ -783,7 +783,7 @@ async function startHost(){
     candleLight.intensity = candleLight.intensity * 0.9 + (Math.min(lit, 14) * 0.9) * 0.1;
     amb.intensity = 0.35 + 0.2 * Math.min(1, lit / 4);
     // done?
-    if (candles.length && state.phase === 'blow' && candles.every(c => c.out)){
+    if (candles.length && state.phase !== 'done' && candles.every(c => c.out)){
       if (!doneAt) doneAt = now; else if (now - doneAt > 900){ doneAt = 0; celebrate(); }
     }
     // smoke
@@ -823,20 +823,24 @@ async function startHost(){
   $('student').classList.remove('hidden');
   let uid; try { uid = localStorage.getItem('hjUid'); } catch(e){}
   if (!uid){ uid = 'u' + rid(6); try { localStorage.setItem('hjUid', uid); } catch(e){} }
-  let myWish = ''; try { myWish = localStorage.getItem('hjWish:' + room) || ''; } catch(e){}
+  let cid = uid; try { cid = localStorage.getItem('hjCid:' + room) || uid; } catch(e){}
+  let myWish = ''; try { myWish = localStorage.getItem('hjWish:' + room + ':' + cid) || ''; } catch(e){}
+  let lastRs = null;
   let phase = 'wish', acked = false, out = false, lastCd = 0;
   let nick = ''; try { nick = localStorage.getItem('hjName:' + room) || ''; } catch(e){}
-  let S = {}; const myAns = {}; let inGame = false;
+  let S = {}; const myAns = {}; let inGame = false, hostOut = false;
   let health = 1.3, max = 1.3, v = 0, hold = 0, mic = null, lastSend = 0, lastSentV = 0;
 
   const net = makeNet(room, (sub, m) => {
     if (sub !== 'state' || m.k !== 'state') return;
     S = m; inGame = (m.pl || []).includes(uid);
     if (m.title) $('sTitle').textContent = m.title;
-    acked = (m.ids || []).includes(uid);
+    acked = (m.ids || []).includes(cid);
     const wasOut = out;
-    if ((m.out || []).includes(uid)) out = true;
-    else if (m.phase === 'wish' && out){ out = false; health = max; }
+    if (lastRs !== null && m.rs !== lastRs && (m.ids || []).includes(cid)){ out = false; health = max; }
+    lastRs = m.rs;
+    hostOut = (m.out || []).includes(cid);
+    if (hostOut) out = true;
     if (out && !wasOut) puff();
     if (m.phase === 'blow' && m.cd && m.cd !== lastCd && Date.now() - m.cd < 6000){ lastCd = m.cd; countdown(); }
     if (m.phase !== phase){ phase = m.phase; }
@@ -880,25 +884,30 @@ async function startHost(){
     });
   }
   const esc = t => String(t).replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
-  function sendWish(){ if (myWish) net.send('up', { k: 'wish', u: uid, text: myWish }); }
-  setInterval(() => { if (myWish && !acked) sendWish(); }, 2500);
+  function sendWish(){ if (myWish) net.send('up', { k: 'wish', u: cid, text: myWish }); }
+  setInterval(() => { if (myWish && !acked) sendWish(); if (out && acked && !hostOut) net.send('up', { k: 'out', u: cid }); }, 2500);
 
   $('sSend').onclick = () => {
     const t = $('sWish').value.trim(); if (!t){ $('sWish').focus(); return; }
-    myWish = t; try { localStorage.setItem('hjWish:' + room, t); } catch(e){}
+    myWish = t; try { localStorage.setItem('hjWish:' + room + ':' + cid, t); } catch(e){}
     acked = false; sendWish(); render();
   };
-  $('sEditLink').onclick = e => { e.preventDefault(); $('sWish').value = myWish; myWish = ''; render(); };
+  $('sEditLink').onclick = e => {
+    e.preventDefault();
+    if (out){ cid = uid + '-' + rid(3); try { localStorage.setItem('hjCid:' + room, cid); } catch(e){} out = false; hostOut = false; health = max = 1 + Math.random() * 0.6; acked = false; $('sWish').value = ''; $('sMine').classList.add('hidden'); }
+    else $('sWish').value = myWish;
+    myWish = ''; render();
+  };
   $('sMic').onclick = async () => {
     try {
       const st = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
-      mic = micBlower(st); $('sMic').textContent = '마이크 켜졌어요. 시작하면 후~'; $('sMic').classList.add('on');
+      mic = micBlower(st); $('sMic').textContent = '마이크 켜졌어요. 후~ 불어 보세요'; $('sMic').classList.add('on');
     } catch(e){ $('sMic').textContent = '마이크를 못 켰어요. 아래 버튼을 꾹 눌러 주세요'; }
   };
   const holdOn = e => { e.preventDefault(); hold = 1; }, holdOff = () => { hold = 0; };
   $('sHold').addEventListener('pointerdown', holdOn); addEventListener('pointerup', holdOff); addEventListener('pointercancel', holdOff);
 
-  let blowOK = false;
+  let blowOK = true;
   function countdown(){
     blowOK = false;
     ['하나', '둘', '셋', '후~!'].forEach((s, i) => setTimeout(() => { const el = $('sCount'); el.textContent = s; el.classList.remove('show'); void el.offsetWidth; el.classList.add('show'); if (i === 3) blowOK = true; }, i * 1000));
@@ -914,17 +923,17 @@ async function startHost(){
     $('sWrite').classList.toggle('hidden', wrote);
     $('sCandle').classList.toggle('hidden', !wrote);
     if (!wrote) return;
-    $('sEdit').classList.toggle('hidden', phase !== 'wish' || out);
-    $('sBlowUI').classList.toggle('hidden', out || phase === 'done');
+    $('sEdit').classList.toggle('hidden', !acked);
+    $('sEditLink').textContent = out ? '초 하나 더 올리기' : '소원 다시 쓰기';
+    $('sBlowUI').classList.toggle('hidden', out || phase === 'done' || !acked);
     let msg;
     if (!acked) msg = '케이크로 보내는 중…';
-    else if (phase === 'done') msg = '소원이 하늘로 올라갔어요';
-    else if (out) msg = '꺼졌다! 다른 초들도 꺼지길 기다려요';
-    else if (phase === 'blow') msg = '지금이에요, 후~ 불어요!';
-    else msg = '케이크에 내 초가 켜졌어요. 선생님이 시작하면 같이 불어요';
+    else if (phase === 'done') msg = '모든 초가 꺼졌어요. 소원이 하늘로 올라갔어요';
+    else if (out) msg = '꺼졌다! 내 소원이 올라가요';
+    else msg = '케이크에 내 초가 켜졌어요. 후~ 불면 꺼져요';
     $('sMsg').textContent = msg;
     const mine = $('sMine');
-    if (phase === 'done'){ if (mine.classList.contains('hidden')){ mine.textContent = '“' + myWish + '”'; mine.classList.remove('hidden'); mine.classList.add('floatUp'); } }
+    if (out || phase === 'done'){ if (mine.classList.contains('hidden')){ mine.textContent = '“' + myWish + '”'; mine.classList.remove('hidden'); mine.classList.add('floatUp'); } }
     else mine.classList.add('hidden');
   }
   render();
@@ -935,11 +944,11 @@ async function startHost(){
     const m = mic ? mic.read() : 0;
     v = v * 0.6 + Math.max(m, hold) * 0.4;
     $('sGauge').style.width = (v * 100) + '%';
-    const canBlow = acked && !out && phase === 'blow' && blowOK;
+    const canBlow = acked && !out && phase !== 'done' && blowOK;
     if (canBlow){
       if (v > 0.05) health -= v * dt * 0.8; else health = Math.min(max, health + dt * 0.12);
-      if (health <= 0){ out = true; puff(); net.send('up', { k: 'out', u: uid }); render(); }
-      if (now - lastSend > 220 && (Math.abs(v - lastSentV) > 0.08 || (v > 0.05 && now - lastSend > 500))){ net.send('up', { k: 'blow', u: uid, v: +v.toFixed(2) }); lastSend = now; lastSentV = v; }
+      if (health <= 0){ out = true; puff(); net.send('up', { k: 'out', u: cid }); render(); }
+      if (now - lastSend > 220 && (Math.abs(v - lastSentV) > 0.08 || (v > 0.05 && now - lastSend > 500))){ net.send('up', { k: 'blow', u: cid, v: +v.toFixed(2) }); lastSend = now; lastSentV = v; }
     }
     const fl = $('sFlame');
     const f = out ? 0 : Math.max(0.2, health / max);
